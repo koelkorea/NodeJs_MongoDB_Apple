@@ -8,7 +8,7 @@ const express = require('express');
 const app = express();
 
 const { MongoClient } = require('mongodb')
-const url = 'mongodb+srv://admin:<lsh916>@cluster0.tatoixz.mongodb.net/?retryWrites=true&w=majority'
+const url = 'mongodb+srv://admin:lsh916@cluster0.tatoixz.mongodb.net/?retryWrites=true&w=majority'
 
 new MongoClient(url).connect().then((client)=>{
 

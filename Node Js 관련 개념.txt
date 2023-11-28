@@ -89,7 +89,7 @@
                         : 해당 GET 메서드의 요청에 대해 파일을 보내고 싶은 경우 사용하는 메서드
                            (= 주로 HTML 파일을 보냄으로서, 화면을 전환할 때 사용함)
 
-       3) express().use(express.static(__dirname, '목표 static 폴더 경로(보통은 /public )'));  
+       4) express().use(express.static(__dirname, '목표 static 폴더 경로(보통은 /public )'));  
            : express.static는 특정 폴더안의 파일들을 static 파일로 지정할 수 있으며, use()메서드를 통해 express 객체가 해당 폴더의 내용을 쓸 수 있도록 등록하는 메서드
            
 
@@ -106,98 +106,3 @@
        : 서버측이 HTTP API요청을 받으면, DB에서 단지 데이터(보통은 JSON형식)를 보내주고, CLINET측은 그 받은 데이터를 기반으로 HTML구조를 재구성해서 다시 랜더링해 화면에 뿌리는 방식
           -> 1) 서버에 GET요청으로 DB데이터를 가져와서
              2) 그걸 html로 만들어서 보여줌
-
-
-
-
-
-
-    # Nodejs + Express로 서버 구축하는법
-
-
-
-
-
-
-
-
-      6. 터미널에 nodemon server.js(없으면 node server.js)를 입력 = 서버 미리보기 띄우기
-      7. (참고) client-side rendering을 react기반 웹페이지에서 사용시, server와 client간 무난한 ajax 요청/반응 원하면
-          -> 1) npm install cors 입력
-                 : 다른 도메인주소끼리 ajax 요청 주고받을 때 필요한 cors 정책 옵션 관련하여 쉬운 설정을 위한 cors 라이브러리를 설치
-
-             2) 다음과 같은 코드를 server.js 상단에 입력
-
-                app.use(express.json());       <- express.json()  : 유저가 보낸 array/object 데이터를 출력해보기 위해 필요
-                var cors = require('cors');    <- require('cors') : cors 라이브러리 모듈로 불러오는 코드
-                app.use(cors());               <- cors()          : cors 라이브러리의 cors관련 옵션 설정을 초기화하여, 다른 도메인 간 ajax소통을 가능하게 하도록 만드는 함수
-
-
-
-
-
-
-
-    # Nodejs + Express With React 라이브러리
-      1. nodejs 설치
-      2. 터미널에 npx create-react-app 프로젝트명 입력 후, 에디터로 오픈하여 개발
-      3. (개발 완료 후) 터미널에 npm run build 입력 : 리액트 완성본 index.html(SPA), css, js 파일이 build 폴더내에 생성
-      4. 그 html 파일이 담긴 프로젝트를 server.js가 있는 프로젝트에 두고, API요청을 받을때 서버에서 유저에게 보내주면 끝
-         (= 사실 react-router-dom을 설치하여 react 안의 코드로도 라우팅 가능하기에, 굳이 서버가 이 역할을 반드시 수행할 필요는 없음)
-
-          - server.js에 보내고 싶은 파일의 위치를 'JS명.use()' API로 다음과 같이 추가 + 'JS명.HTML메서드()'를 통해 서버에서 요청이 들어오면 보내주는 것도 가능
-            (= /list 로 접속하면 글목록 보여주고 /mypage 접속하면 마이페이지도 보여줌)
-               -> (참고) express.static이라는걸 쓰시면, 특정 폴더안의 파일들을 static 파일로 고객들에게 잘 보내줄 수 있음
-
-            # server.js 문법 예시 
-              : app.use(express.static(path.join(__dirname, '목표 static 폴더 경로')));  
-
-                app.get('/', function (요청, 응답) {
-                  응답.sendFile(path.join(__dirname, '파일 경로'));
-                });
-
-                ex) app.use(express.static(path.join(__dirname, 'react-project/build')));
-                    app.get('/', function (요청, 응답) {
-                      응답.sendFile(path.join(__dirname, '/react-project/build/index.html'));
-                    });
-
-          - 만약 세부적인 API요청에 따른 페이지 라우팅을 react-router 라이브러리를 통해 구현하고 싶다면? 
-             : 서버로 하여금 그렇게 하도록, 그에 해당하는 코드를 server.js에 가장 하단에 입력함
-               (= 사실상 react 라우터에서 주어진 url 외의 모든 형식에 해당하는 요청에 답하라는 그 코드와 같음)
-                   -> 단지, 서버는 고객이 URL란에 설정해 둔 URL주소를 찾을 수 없을 때, index.html을 출력하게 되고, 그 이후 후속 라우팅 조치는 react-router가 수행하게 만드는 로직일 뿐
-
-                ex) app.get('*', function (요청, 응답) {
-                      응답.sendFile(path.join(__dirname, '/react-project/build/index.html'));   =   <Route path = "*" element = { <div> 404! 없는 페이지 </div> } />
-                    });
-
-    # React에서 DB서버를 통해 데이터를 보여주려면?
-       : 일반적으로 client-side rendering 기반의 라이브러리인 REACT를 사용하면, 서버는 GET요청으로 DB데이터를 보내고, CLIENT는 그것을 이용해서 HTML 재랜더링을 수행하여 화면을 보여줌
-          -> 1. 서버는 누군가 특정 URL로 GET요청을 하면 DB에서 데이터 꺼내서 보내주라고 API(거의 Ajax로 구현하게 됨)를 구성 
-             2. REACT 기반 웹페이지를 보여주는 CLIENT는 상품목록을 보여주고 싶을 때 서버 /product 주소로 GET요청 날림
-             3. 받아온 데이터를 가지고, CLINET에서 이를 이용해서 HTML을 재렌더링하도록 구성하면 끝
-
- 
-    # 별 필요 없으나... 만들어 놓은 react 웹페이지를 메인 도메인(대문)이 아니라, 서브 도메인에 발행하고 싶은 경우 
-      (= / 이렇게 접속하면 public 폴더에 있던 그냥 main.html을 보여주고, /react 이렇게 접속하면 리액트로 만든 html을 띄우고 싶은 경우)
-
-      1. server.js에 메인 도메인과 서브 도메인의 설정을 다르게 작성
-
-        ex) [메인 url 사용시의, 폴더 경로 & 메인 url로 get요청시 보낼 html명 설정] 
-            app.use( '/', express.static( path.join(__dirname, 'public') ))
-            app.get('/', function(요청,응답){
-              응답.sendFile( path.join(__dirname, 'public/main.html') )
-            }) 
-
-            [메인 url/react 사용시의, 폴더 경로 & 메인 url로 get요청시 보낼 html명 설정] 
-            app.use( '/react', express.static( path.join(__dirname, 'react-project/build') ))
-            app.get('/react', function(요청,응답){
-              응답.sendFile( path.join(__dirname, 'react-project/build/index.html') )
-            })
-
-      2. package.json의 homepage라는 항목을 react 웹페이지 요청에 해당되는 서브 디렉토리명(= 메인 url/react)로 새로 기입
-
-         ex) {
-               "homepage": "/react",
-               "version": "0.1.0",
-               ... 등
-             } 
