@@ -1,0 +1,203 @@
+- 서버(server)
+   : 누가 어떤 데이터를 '요청'하면 보내주는(= '응답') 역할을 수행하는 프로그램 
+      -> 그 프로그램을 수행하는 실체가 물리적 컴퓨터일수도 있고, 논리적으로 분리된 가상 컴퓨터일수도 있음
+         (비슷한 코드를 짜다보니 효과적인 중복방지를 위한 패턴으로 인해, 분리와 조건문 다형성을 활용한 패턴을 적극활용하는 경우가 많을 뿐)
+
+    # 웹서버
+       : 누가 어떤 홈페이지 도메인(URL)으로 접속하면 거기맞는 html을 보내주는 서버
+
+    # 포트(port)
+       : 내 컴퓨터의 ip가 일종의 국가면, 포트는 항구와 같은 의미로.. 이 포트라는 단위를 기준으로 컴퓨터는 여러 컴퓨터 및 어플리케이션들과의 통신을 구분하여 주고 받을 수 있도록 할당받음 
+          -> BUT! 기본적으로 유명한 번호의 포트는 컴퓨터에서 이미 사용하거나, 특정 기능이나 앱이 사용하도록 할당되는 경우가 있는데, 이런건 따로 건드는일 없도록 해 함
+
+
+- Java & ECMA Script
+   : HTML로 이루어진 웹페이지를 동적으로 제어하고, 여러가지 기능을 넣기 위해 만들어진 하이브리드 패러다임 기반 언어
+      -> 브라우저에서 웹페이지를 통제하는데 사용하는 OOP, Funtional 등등 각종 패러다임에 대응가능한 프로그래밍 언어
+         (= 일반적으로 Script로 작성된 프로그램은 브라우저에 내장 된 Script 엔진이 읽고 수행함)
+        
+
+- Nodejs
+   : 구글이 크롬 안에 넣은 Script 엔진인 V8의 성능이 너무 좋기에, 독립적으로 이를 일반 런타임 환경에서도 실행 가능하도록 출시한 V8기반 Script 파일 실행기
+     (= 쉽게 말해, Nodejs와 함께라면 브라우저 없이도 어떤 환경에서라도 JS기반 프로그램을 전부 실행할 수 있음)
+   
+    # Nodejs 장점
+       : Script로 다 해먹을 수 있음 + js의 장점을 기본적으로 서버구축에 적용이 가능함
+
+         1) JS로 확장성 있는 네트워크 애플리케이션 백엔드까지 구축할 수 있기 때문!!!!!
+            (= JS의 특유의 이벤트 루프와 비동기 입/출력(= Non blocking I/O)와 같은 특징들을 그대로 서버에 Script만 알아도 활용이 가능함!)
+  
+         2) Script만 알아도, 프론트와 백엔드 전부를 커버 가능하다..
+            (= 웹개발은 Script로 대동단결 쌉가능...)  
+  
+         3) 검증된 비동기 입/출력(= Non blocking I/O) 코드가 파일 입/출력, DB 입/출력 명령에 기본적으로 적용이 되어 있음
+
+    # Nodejs 단점
+       : 기존 Script 언어의 단점 역시 공유함
+
+         1) 쓰레드가 1개라는 JS의 고유의 약점으로 인해, CPU를 많이 갈궈야하는 작업(이미지 변환, 동영상 압축, 숫자 계산)에는 성능도 좋지 않음
+  
+         2) 동적 타입 언어이기에 타입 관련 불안정성도 같이 가져감
+             -> BUT! 타입스크립트를 사용하면? 전부 해결 가능ㄴ
+
+    # Nodejs + Express로 서버 구축하는법
+      1. nodejs 설치
+      2. 작업폴더만들고 에디터로 오픈
+      3. 터미널에 npm init -y 입력 = node 서버 초기화 작업
+      4. 터미널에 npm install express 이것도 입력 = express 프레임워크 설치
+      5. server.js 파일을 프로젝트 가장 바깥쪽에 생성 후, 아래 코드 작성하여 express 프레임워크를 모듈로 불러온 뒤, 
+          -> 서버 세팅과 구동을 위한 보일러플레이트 코드(Boilerplate code) 작성
+
+             const express = require('express');
+             const app = express();
+             
+             app.listen(8080, function () {         <- app.listen() 부분 : 실제 서버 8080포트에 띄우라는 뜻
+               console.log('listening on 8080')
+             }); 
+
+             app.get('/', (요청, 응답) => {          <- app.get(URL) 부분 : HTTP get 메서드로 도메인 자체 호출시, '반갑다'라는 글자를 보냄
+               응답.send('반갑다')
+             }) 
+
+      6. 터미널에 node server.js 를 입력 = 서버 미리보기 띄우기
+      7. http://localhost:8080으로 접속
+      8. npm install -g nodemon 입력 = nodemon 설치 (= 소스변경 후, 서버 자동으로 재시작해서 반영해주는 프로그램)
+          -> nodemon server.js로 실행
+
+
+- Express 프레임워크
+   : 웹이나 모바일 환경 기반 애플리케이션을 위한 Node.js 기반 웹 애플리케이션 프레임워크
+      -> 프레임워크인 이유?
+          : 사용법이 까다롭고 딱딱하나, 이 녀석이 시키는데로 하면 쉽고 빠르고 간편하게 사용자가 원하는데로 서버 환경 커스터마이징이 가능함
+
+    # Express 기반 메서드
+       : express()의 결과로 반환된 객체 내부의 함수들
+
+       1) express().listen(포트, () => console.log('접속 성공 메시지') )
+           : 해당 포트번호를 통해 통신하는 웹서버를 띄운 뒤, 성공하면 성공메시지를 터미널에 보내라는 명령어  
+
+       2) express().get('url', (요청parameter, 응답parameter) => { 내용 } )
+           : express 기반으로 만들어진 서버 객체에 HTTP GET 메서드로 해당 URL을 요청하면, 그에 해당하는 내용을 응답하도록 API를 구성하는 메서드
+
+       3) express().get('*', (요청parameter, 응답parameter) => { 내용 } )
+           : express 기반으로 만들어진 서버 객체에 HTTP GET 메서드로 현재 입력된 URL 이외의 내용을 요청하면, 그에 해당하는 내용을 응답하도록 API를 구성하는 메서드
+               -> 콜백함수의 내용을 통한 응답내용 메서드
+                    1. 응답parameter.send('보내고 싶은 내용')
+                        : 해당 GET 메서드의 요청에 대해 화면에 메시지를 보내고 싶은 경우 사용하는 메서드
+
+                    2. 응답parameter.sendFile('보내고 싶은 파일경로명')
+                        : 해당 GET 메서드의 요청에 대해 파일을 보내고 싶은 경우 사용하는 메서드
+                           (= 주로 HTML 파일을 보냄으로서, 화면을 전환할 때 사용함)
+
+       3) express().use(express.static(__dirname, '목표 static 폴더 경로(보통은 /public )'));  
+           : express.static는 특정 폴더안의 파일들을 static 파일로 지정할 수 있으며, use()메서드를 통해 express 객체가 해당 폴더의 내용을 쓸 수 있도록 등록하는 메서드
+           
+
+- rendering의 종류
+   1. server-side rendering (SSG)
+       : 서버측에서 HTTP API요청을 받으면, 그 요청에 맞는 HTML을 구성해서 CLIENT에게 보내주고, CLIENT측 브라우저는 이를 화면에 랜더링해주기만 하는 방식
+          -> 1) DB에서 데이터 뽑아서
+             2) 글목록.html 파일에 꽂아넣고
+             3) 그 html 파일을 서버에서 보내줌
+
+         EX) EJS (JSP 1.5에서 쓰던 그 스크릿틀립(<% %>, <%= %>, <%- %>)을 사용함 )
+   
+   2. client-side rendering (CSG)
+       : 서버측이 HTTP API요청을 받으면, DB에서 단지 데이터(보통은 JSON형식)를 보내주고, CLINET측은 그 받은 데이터를 기반으로 HTML구조를 재구성해서 다시 랜더링해 화면에 뿌리는 방식
+          -> 1) 서버에 GET요청으로 DB데이터를 가져와서
+             2) 그걸 html로 만들어서 보여줌
+
+
+
+
+
+
+    # Nodejs + Express로 서버 구축하는법
+
+
+
+
+
+
+
+
+      6. 터미널에 nodemon server.js(없으면 node server.js)를 입력 = 서버 미리보기 띄우기
+      7. (참고) client-side rendering을 react기반 웹페이지에서 사용시, server와 client간 무난한 ajax 요청/반응 원하면
+          -> 1) npm install cors 입력
+                 : 다른 도메인주소끼리 ajax 요청 주고받을 때 필요한 cors 정책 옵션 관련하여 쉬운 설정을 위한 cors 라이브러리를 설치
+
+             2) 다음과 같은 코드를 server.js 상단에 입력
+
+                app.use(express.json());       <- express.json()  : 유저가 보낸 array/object 데이터를 출력해보기 위해 필요
+                var cors = require('cors');    <- require('cors') : cors 라이브러리 모듈로 불러오는 코드
+                app.use(cors());               <- cors()          : cors 라이브러리의 cors관련 옵션 설정을 초기화하여, 다른 도메인 간 ajax소통을 가능하게 하도록 만드는 함수
+
+
+
+
+
+
+
+    # Nodejs + Express With React 라이브러리
+      1. nodejs 설치
+      2. 터미널에 npx create-react-app 프로젝트명 입력 후, 에디터로 오픈하여 개발
+      3. (개발 완료 후) 터미널에 npm run build 입력 : 리액트 완성본 index.html(SPA), css, js 파일이 build 폴더내에 생성
+      4. 그 html 파일이 담긴 프로젝트를 server.js가 있는 프로젝트에 두고, API요청을 받을때 서버에서 유저에게 보내주면 끝
+         (= 사실 react-router-dom을 설치하여 react 안의 코드로도 라우팅 가능하기에, 굳이 서버가 이 역할을 반드시 수행할 필요는 없음)
+
+          - server.js에 보내고 싶은 파일의 위치를 'JS명.use()' API로 다음과 같이 추가 + 'JS명.HTML메서드()'를 통해 서버에서 요청이 들어오면 보내주는 것도 가능
+            (= /list 로 접속하면 글목록 보여주고 /mypage 접속하면 마이페이지도 보여줌)
+               -> (참고) express.static이라는걸 쓰시면, 특정 폴더안의 파일들을 static 파일로 고객들에게 잘 보내줄 수 있음
+
+            # server.js 문법 예시 
+              : app.use(express.static(path.join(__dirname, '목표 static 폴더 경로')));  
+
+                app.get('/', function (요청, 응답) {
+                  응답.sendFile(path.join(__dirname, '파일 경로'));
+                });
+
+                ex) app.use(express.static(path.join(__dirname, 'react-project/build')));
+                    app.get('/', function (요청, 응답) {
+                      응답.sendFile(path.join(__dirname, '/react-project/build/index.html'));
+                    });
+
+          - 만약 세부적인 API요청에 따른 페이지 라우팅을 react-router 라이브러리를 통해 구현하고 싶다면? 
+             : 서버로 하여금 그렇게 하도록, 그에 해당하는 코드를 server.js에 가장 하단에 입력함
+               (= 사실상 react 라우터에서 주어진 url 외의 모든 형식에 해당하는 요청에 답하라는 그 코드와 같음)
+                   -> 단지, 서버는 고객이 URL란에 설정해 둔 URL주소를 찾을 수 없을 때, index.html을 출력하게 되고, 그 이후 후속 라우팅 조치는 react-router가 수행하게 만드는 로직일 뿐
+
+                ex) app.get('*', function (요청, 응답) {
+                      응답.sendFile(path.join(__dirname, '/react-project/build/index.html'));   =   <Route path = "*" element = { <div> 404! 없는 페이지 </div> } />
+                    });
+
+    # React에서 DB서버를 통해 데이터를 보여주려면?
+       : 일반적으로 client-side rendering 기반의 라이브러리인 REACT를 사용하면, 서버는 GET요청으로 DB데이터를 보내고, CLIENT는 그것을 이용해서 HTML 재랜더링을 수행하여 화면을 보여줌
+          -> 1. 서버는 누군가 특정 URL로 GET요청을 하면 DB에서 데이터 꺼내서 보내주라고 API(거의 Ajax로 구현하게 됨)를 구성 
+             2. REACT 기반 웹페이지를 보여주는 CLIENT는 상품목록을 보여주고 싶을 때 서버 /product 주소로 GET요청 날림
+             3. 받아온 데이터를 가지고, CLINET에서 이를 이용해서 HTML을 재렌더링하도록 구성하면 끝
+
+ 
+    # 별 필요 없으나... 만들어 놓은 react 웹페이지를 메인 도메인(대문)이 아니라, 서브 도메인에 발행하고 싶은 경우 
+      (= / 이렇게 접속하면 public 폴더에 있던 그냥 main.html을 보여주고, /react 이렇게 접속하면 리액트로 만든 html을 띄우고 싶은 경우)
+
+      1. server.js에 메인 도메인과 서브 도메인의 설정을 다르게 작성
+
+        ex) [메인 url 사용시의, 폴더 경로 & 메인 url로 get요청시 보낼 html명 설정] 
+            app.use( '/', express.static( path.join(__dirname, 'public') ))
+            app.get('/', function(요청,응답){
+              응답.sendFile( path.join(__dirname, 'public/main.html') )
+            }) 
+
+            [메인 url/react 사용시의, 폴더 경로 & 메인 url로 get요청시 보낼 html명 설정] 
+            app.use( '/react', express.static( path.join(__dirname, 'react-project/build') ))
+            app.get('/react', function(요청,응답){
+              응답.sendFile( path.join(__dirname, 'react-project/build/index.html') )
+            })
+
+      2. package.json의 homepage라는 항목을 react 웹페이지 요청에 해당되는 서브 디렉토리명(= 메인 url/react)로 새로 기입
+
+         ex) {
+               "homepage": "/react",
+               "version": "0.1.0",
+               ... 등
+             } 
