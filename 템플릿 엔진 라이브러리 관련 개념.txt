@@ -7,33 +7,103 @@
        2. 검색 엔진 최적화(SEO) 가능
        3. 개발자로 하여금 서버사이드 렌더링 프로세스를 쉽게 다룰 수 있도록 도와줌
 
-- EJS
+- EJS(Embedded JavaScript)
    : Node JS를 기반으로 하는 웹서버에서 사용하는 템플릿 엔진 라이브러리
      (= JSP 1.5에서 사용하는 초기 엄격한 용도로 구분된 기호를 기반으로 한 템플릿과 유사함)
 
-    # EJS에서 사용하는 템플릿 기호들
+    # EJS 사용법
+      1. 터미널에 EJS 라이브러리 설치
+          : npm install ejs
+
+      2. server.js 파일에 코드를 사용하기 앞서 express() 환경에서 템플릿 엔진을 지정해서 사용하기 위한 보일러 플레이트 코드를 입력하자
+          -> express().set('view engine', '템플릿 엔진명');
+              : express 라이브러리 환경에서 '템플릿 엔진'을 쓸 수 있게 하는 코드 (ejs를 써보도록 하겠음)
+
+                ex) express().set('view engine', 'ejs');
+
+      3. 서버사이드 렌더링시 사용할 EJS 파일이 있다면?
+          -> 서버사이드 렌더링으로 생성할 페이지라는 의미의 view라는 폴더를 만들고 그 안에 생성함
+
+      4. 생성할 파일에 HTML와 템플릿 양식을 통해, 서버에서 받은 데이터가 들어갈 위치를 배치하고 페이지를 작성함
+
+      5. server.js에서 ejs과 관련된 url에 해당하는 express HTTP API 함수의 파라미터로 들어갈 무명의 콜백함수를 통해 ejs 파일을 지정하고 뽑아온 db데이터를 연결함
+         (= promise객체 기반 ejs 라이브러리 함수인 render()를 통해, ejs와 db데이터를 연결함)
+
+         ex) 도메인/list를 들어가게 된다면?
+              -> 1. (비동기 코드 명심!) MongoDB에서 post라는 collenction의 데이터를 읽고, 
+                 2. 그걸 list.ejs라는 템플릿 엔진 view 파일에 특정한 변수명으로 대입해서 보내준 뒤, 
+                 3. 이를 웹페이지로 렌더링해서 그 결과물을 사용자에게 보내라
+         
+                    app.get('/list', async (요청, 응답) =>{
+                    
+                        // (중요!) MongoDB의 데이터를 읽는 API는 비동기 코드임을 명심 = then() catch() finally()나 async, await을 써서 제어해야함
+                        let result = await db.collection('post').find().toArray();
+
+                        // list.ejs라는 템플릿 파일에 result에 담겨있던 자료값이 글목록이라는 변수명으로 옮겨짐
+                        응답.render('list.ejs', { 글목록 : result });
+                    })
+
+    # ejs에서 사용되는 템플릿 기호들
+       -> 이 녀석들 JSP 같은 애들이랑 다르게 "" 안에서도 기본적으로 인식이 가능
 
        1. <% (= 스크립틀릿(Scriptlet) )
-          : <% %> 안에 작성된 영역들은 주로 변수 선언이나 제어 구문과 같은 동적인 로직을 담당하는 코드로 구성됨
+          : <% %> 안에 작성된 영역들은 주로 JS변수 선언이나 제어 구문과 같은 동적인 로직을 담당하는 코드로 구성됨
              -> (주의!) 여기다가 함수 작성하거나, HTML에 값을 출력할 목적으로 해당 기호를 쓰면 안됨!!!
 
-       2. <%@ (= 지시어, 디렉티브(Directive) )
-          : <%@ %> 안에 작성된 영역들은 페이지에 필요한 지시사항이나 설정을 정의하는 코드로만 구성되어 있음
+                 ex1) js 영역의 반복문 작성
 
-             ex) import 설정, HTML 헤드영역 작성
+                      <% for (var i = 0; i < 글목록.length; i++){ %>
+                          <h4><%= 글목록[0].title %></h4>
+                      <% } %> 
 
-       3. <%= (= 표현식(Expression) )
-          : <%= %> 안에 작성된 영역들은 해당 위치에 있는 변수나 값을 HTML로 출력
-             -> (중요!) 반드시 이 기호를 사용하여 동적으로 생성된 값을 웹 페이지에 표시하여야 함
+                 ex2) include 하기 (여기서는 <%@ 사용 X)
+                       : <% include('nav.ejs') %>
+                           -> nav.ejs의 HTML 내용이 해당 위치에 불러와짐
+
+                 ex3) URL 파라미터 문법과 연관된 URL을 사용한 API를 호출하는 a태그의 링크를 기입가능 
+                      (= ""안에서도 템플릿 기호가 인식이 됨!)
+
+                      <a href="/detail/<%= 글목록[i]._id %>">
+                        <h4><%= 글목록[i].title %></h4>
+                      </a>
+
+       1.1 <%_ (= 스크립틀릿 영역과 같은 기능 + 공백제거)
+          : <% %> 안에 작성된 영역들은 주로 변수 선언이나 제어 구문과 같은 동적인 로직을 담당하는 코드로 구성되지만.. 앞뒤 공백을 없애서 가독성을 높임
+            (= 스크릿틀릿 내부에서 인식가능한 코드는 여기서도 인식 가능)
+
+       2. <%= (= 표현식(Expression) )
+          : <%= %> 안에 작성된 영역들은 해당 위치에 있는 js변수나 값을 HTML로 출력
+             -> (중요!) 반드시 이 기호를 사용하여 동적으로 생성된 값을 웹 페이지에 표시 + 서버에서 ejs로 보낸 DB데이터 변수명을 써야함
+
+                 ex) <div class="list-box">
+                        <h4><%= 글목록[0].title %></h4>
+                        <p><%= JSON.stringify(글목록) %></p>
+                     </div>
+
+       3. <%- (= 이스케이핑 변환 안 한 특수문자 출력(Unescaped Output Tag) )
+          : <%- %> 안에 작성된 영역들의 코드는 그 안에 들어있는게 HTML로 판명나면, HTML 태그를 이루는 <, >를 이스케이프로 변환 안하고 HTML로 렌더링함
+             -> 특수문자들 이스케이프 문자 출력X 하는 버젼의 표현식이라고 생각하면 편하다
+                (= <% (= 표현식)으로 대체하면 HTML 태그를 입력했을때 <나 >이 이스케이프 문자로 출력된다는 의미)
+
+                 ex) const htmlCode = '<strong>Hello, <em>World</em>!</strong>';
+
+                     <p>This is a paragraph with HTML: <%= htmlCode %></p>   
+                       -> <p>This is a paragraph with HTML: &lt;strong&gt;Hello, &lt;em&gt;World&lt;/em&gt;!&lt;/strong&gt;</p>
+
+                     <p>This is a paragraph with HTML: <%- htmlCode %></p>    
+                       -> <p>This is a paragraph with HTML: <strong>Hello, <em>World</em>!</strong></p>  
 
        4. <%! (= 선언문(Declaration) )
           : <%! %> 안에 작성된 영역들은 함수나 메서드를 선언 시에 사용되며, 이 부분에서 정의된 함수는 스크립틀릿 내부에서 호출 가능
             (= 함수를 선언할거면 반드시 여기서 선언해야하며, 안 그러면 에러의 원인이 됨!)
 
-    # EJS 사용법
-      1. 터미널에 npm install ejs 입력하여 EJS 라이브러리 설치
-      2. 서버사이드 렌더링시 사용할 EJS 파일이 있다면?
-          -> 서버사이드 렌더링으로 생성할 페이지라는 의미의 view라는 폴더를 만들고 그 안에 생성함
-      3. 생성할 파일에 HTML와 템플릿 양식을 통해, 서버에서 받은 데이터가 들어갈 위치를 배치하고 페이지를 작성함
+             ex) <%! 
+                   function greet(name) {
+                     return "Hello, " + name + "!";
+                   }
+                 %>
 
-      
+       5. (ejs는 사용 X)  <%@ (= 지시어, 디렉티브(Directive) )
+           : <%@ %> 안에 작성된 영역들은 페이지에 필요한 지시사항이나 설정을 정의하는 코드로만 구성되어 있음
+
+              ex) import 설정, HTML 헤드영역 작성

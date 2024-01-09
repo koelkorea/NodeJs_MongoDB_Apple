@@ -1,16 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="/main.css" rel="stylesheet">
+    <title>Document</title>
+</head>
 <body class="grey-bg">
 
-    <div class="white-bg">
-        <div class="list-box">
-            <h4><%= 글목록[0].title %></h4>
-            <p>글내용임</p>
-        </div>
+    <!-- include(파일위치)를 통해, js를 붙일 수 있음 -->
+    <%- include('nav.ejs') %>
 
-        <div class="list-box">
-            <h4>글제목임</h4>
-            <p>글내용임</p>
+    <div class="white-bg">
+
+    <!-- 반복문을 통해 js변수 내부 객체배열의 값을 반복해서 만들어 낸 HTML 태그 -->
+    <% for (var i = 0; i < 글목록.length; i++){ %>
+
+        <div class="white-box">
+            <div class="list-box">
+                <!-- 템플릿 기호는 ""안에서도 인식되며, 링크를 만들수 있게 함 -->
+                <a href="/detail/<%= 글목록[i]._id %>">
+                    <h4><%= 글목록[i].title %></h4>
+                </a>
+                <p><%= 글목록[i].content %></p>
+            </div>
         </div>
+        
+    <% } %> 
 
     </div> 
-
+    <div style="text-align: center"> 
+        <!-- <%= JSON.stringify(글목록) %> -->
+        <%= 날짜 %>
+    </div> 
 </body>
+</html>
