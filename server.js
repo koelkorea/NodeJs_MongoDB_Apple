@@ -103,15 +103,16 @@ app.get('/time', async (요청, 응답) =>{
 })
 
 // (중요) 템플릿 엔진으로부터 API요청이 들어왔을 경우, 그 요청(request)의 body 영역을 파싱(parse)하기 위해 사용되는 미들웨어에 대한 보일러 플레이트 코드를 입력해야 함
-//   -> 이를 사용하지 않을 경우, 요청이 들어온 데이터의 body영역이 인간이 알기 어려운 용어로 전달되거나 예기치 못한 에러가 발생할 수 있음
 
 // app.use(express.json())
 //  : express 라이브러리 환경에서 JSON 형태의 들어온 요청(request)의 body 영역을 파싱(parse)하기 위해 사용되는 미들웨어(middleware)
+//   -> 이를 사용하지 않을 경우, 요청이 들어온 데이터의 Json 데이터의 body영역이 인간이 알기 어려운 용어로 전달되거나 예기치 못한 에러가 발생할 수 있음
 
 app.use(express.json());
 
 // app.use(express.urlencoded())
-//  : express 라이브러리 환경에서 JSON 형태가 아닌 form 데이터나 멀티파트 등 다른 형태로 요청이 들어온 요청(request)의 body 영역을 파싱(parse)하기 위해 사용되는 URL 인코딩 관련 미들웨어(middleware)
+//  : express 라이브러리 환경에서 form태그나 멀티파트 등 JSON 형태가 아닌 URL에 데이터가 포함되어 들어오는 형태로 들어온 요청(request)의 body 영역을 파싱(parse)하기 위해 사용되는 URL 인코딩 관련 미들웨어(middleware)
+//     -> 이를 사용하지 않을 경우, 템플릿 엔진으로부터 API요청이 들어온 JSON 이외 데이터의 body영역과 URL에서 얻은 데이터가 인간이 알기 어려운 용어로 전달되거나 예기치 못한 에러가 발생할 수 있음
 
 //  app.use(express.urlencoded( {extended:boolean} ) )
 //   : urlencoded 미들웨어에서 전달된 url 쿼리 스트링을 보안 이슈가 있는 중첩 객체를 통해 파싱할건지를 결정하는 설정값
@@ -185,4 +186,54 @@ app.get('/detail/:id', async (요청, 응답) => {
         console.log(e);
         응답.status(500).send('DB에러남... id에 이상한걸 넣는군..');
     }
+});
+
+// (과제) 사용자가 목록 화면에서 도메인/edit/:parameter로 GET방식의 API를 요청하면, edit.ejs 템플릿을 따르는 상세페이지 보여주기
+app.get('/edit/:id', async (요청, 응답) => {
+
+    let result = await db.collection('post').findOne({_id : new ObjectId(요청.params.id)});
+    응답.render('edit.ejs', { 기존글 : result });
+});
+
+// (과제) 목록화면에서 도메인/revise라는 url에 POST 형식으로 보낸 form 데이터를 서버에서 받아 DB에 입력하는 API 구현
+app.post('/revise/:id', async (요청, 응답)=>{
+
+    // 서버 API를 거치게 될 때, validator 처리를 위한 조건문
+    if (요청.body.title == '') {
+
+        응답.send('제목을 적어주시길..')
+
+    } else {
+
+        try{
+            // client.db('forum').collection('post').updateOne( { _id : 요청.params.id }, { $set: { title : 요청.body.title, content : 요청.body.content } } );
+            //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션에 id가 url파라미터의 id와 같은 데이터를 찾은뒤 js객체 형식으로 적힌 {}안의 데이터로 수정
+            await db.collection('post').updateOne( { _id : new ObjectId(요청.params.id) }, { $set: { title : 요청.body.title, content : 요청.body.content } } );
+            응답.redirect('/list');
+        } catch (e) {
+            console.log(e);
+            응답.status(500).send('DB에러남');
+        }
+    } 
+
+});
+
+// (과제1) 목록화면에서 도메인/delete라는 url에 AJAX 방식을 사용하고 데이터는 url에 queryString 방식을 통해 delete 형식으로 보낸 데이터를 서버에서 받아 DB에 입력하는 API 구현
+app.delete('/delete', async (요청, 응답)=>{
+
+    try{
+        // queryString 문법을 사용한다면, '요청parameter'.query 통해 url에 전해진 url파라미터 내용을 js객체 형식으로 한번에 보는게 가능함
+        console.log(요청.query);
+
+        // client.db('forum').collection('post').updateOne( { _id : new ObjectId(요청.query.id) } );
+        //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션에 id가 url queryString id라는 데이터명의 값과 같은 데이터를 찾은뒤 이를 삭제
+        await db.collection('post').deleteOne( { _id : new ObjectId(요청.query.id) } )
+        alert('삭제완료');
+        응답.redirect('/list');
+
+    } catch (e) {
+        console.log(e);
+        응답.status(500).send('DB에러남');
+    }
+
 });

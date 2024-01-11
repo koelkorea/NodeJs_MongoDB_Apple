@@ -6,6 +6,16 @@
     <link href="/main.css" rel="stylesheet">
     <title>Document</title>
 </head>
+<script>
+
+    for (var i = 0; i < <%= 글목록.length %>; i++){
+        // FORM태그 없이 이벤트리스너를 통한 클릭시 게시물 이벤트 구현
+        document.querySelectorAll('.delete')[i].addEventListener('click', function(){
+            fetch('/delete?id=' +  <%= 글목록 %>[i]._id,  { method : 'DELETE' })
+        });
+    }
+
+  </script>
 <body class="grey-bg">
 
     <!-- include(파일위치)를 통해, js를 붙일 수 있음 -->
@@ -23,6 +33,9 @@
                     <h4><%= 글목록[i].title %></h4>
                 </a>
                 <p><%= 글목록[i].content %></p>
+                <!-- 수정화면 이동 버튼 -->
+                <a href="/edit/<%= 글목록[i]._id %>">✏️</a>
+                <span class="delete" data-row="<%= i %>">🗑️</span>
             </div>
         </div>
         

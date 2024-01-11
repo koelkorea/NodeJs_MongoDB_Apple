@@ -32,7 +32,6 @@
         5. DELETE
             : 서버에게 데이터를 삭제요청시에 사용
 
-
 - RESTful(Representational State Transfer) API
    : 웹서버에서 URI + HTTP 메서드를 통해, 사용자와 운영자 모두에게 좋은 방식의 웹서버 API를 설계(= 작명)하는 6가지 방법론으로 이해
      (= 그냥 method, URL만 잘 기입해두면 관습적으로 REST하다고 함... )
@@ -79,7 +78,91 @@
            2. 어떤 코드 영역을 실행시 잠재적으로 에러가 나올수도 있는 코드가 예상된다??
                : try, catch(e) 구문을 통해, 에러가 예상되는 코드를 영역으로 묶은뒤 거기서 일어나는 에러를 처리할 수 있는 catch영역 코드를 작성하기
 
-           3.
+- (중요) 웹서버에 데이터를 전송하는 방식
+  1. URL의 일부로 데이터를 포함해서 보냄..
+      : 말 그대로 URL에 데이터를 그냥 무식하게 포함해서 보냄
+
+       # 방법
+          1) URL 파라미터
+              : NodeJS에서 설정을 통해 URL에서 파라미터로 보낸 정보의 위치를 서버가 찾고 판별할 수 있는 형식을 API의 URL에 적어서, 사용자 측에서 보낸 API 요청에 응답할 때 URL에서 데이터를 특정 변수명으로 대입해서 쓰는 방식 
+                 -> 그렇게 받은 정보는 API {} 내부에서 '요청parameter명.params'로 접근하여 해당 URL파라미터들을 모아 기록한 객체에 쓸 수 있음
+                    (= '요청parameter명.params' 형식으로 사용이 가능한 이유는 얘도 queryString이나 qs라는 NodeJs의 라이브러리를 사용하기 떄문)
+
+                 ex) app.post('/delete/:id/:name', async (요청, 응답)=>{
+                        요청.params = [ {id : id값} , {name : name값} ]
+                        요청.params.id 이런식으로 접근 가능
+                     });
+
+               @ 장점
+                  1. 그나마 보내는 데이터가 어떤 칼럼에서 나오는지를 가리기에 보안적인 면에서 나을수는 있음
+
+               @ 단점
+                  1. 약간이나마 서버설정이 필요하다는 단점 존재
+                  2. POST 방식을 쓰면 그나마 낫지만, 기본적으로 URL에 데이터를 포함해서 보내기에 보안이 씹망
+
+          2) queryString
+              : 아무런 설정이 필요없이 URL에 대놓고, '도메인?데이터이름=데이터값&...' 이런식으로 데이터를 전송하는 방식... 
+                 -> 그렇게 받은 정보는 API {} 내부에서 '요청parameter명.query'로 접근하여 해당 URL파라미터들을 모아 기록한 객체에 쓸 수 있음
+                    (= '요청parameter명.query' 형식으로 사용이 가능한 이유는 얘도 queryString이나 qs라는 NodeJs의 라이브러리를 사용하기 떄문)
+
+                 ex) app.post('/delete?id=<%= 글목록[i]._id%>&title=<%= 글목록[i].title %>', async (요청, 응답)=>{
+                        요청.query = [ {id : id값} , {name : name값} ]
+                        요청.query.id 이런식으로 접근 가능
+                     });
+
+               @ 장점
+                  : 그냥 사용이 ㅈㄴ 간편하며, 어떤 라이브러리나 설정이 필요없이 그냥 기본적으로 지원됨
+
+               @ 단점
+                  : POST 방식을 쓰면 그나마 낫지만, 기본적으로 URL에 데이터를 포함해서 보내기에 보안이 씹망
+                     -> 그런 중대한 문제가 있어.. express 라이브러리에서 url인코딩 미드웨어(하단 express의 API목록 참고)를 쓸 때.. 그 옵션으로 보안성 확정 여부를 묻는게 존재함
+                        (= 기본 queryString의 보안문제를 해결한 qs 라이브러리가 존재함.. npm install qs로 인스톨 가능)
+
+  2. HTML의 FORM태그를 사용해서 전송하는 방법
+      : FORM태그의 action 속성에 url을 적고, method 속성에 HTTP 메서드를 적어서 웹서버에 API를 요청함
+
+       # 장점
+          : HTML레벨에서 지원하는 방식이기에, 이벤트 동작은 신경 안 써도 되고 상대적으로 화면에서 할게 적은 편
+
+       # 단점
+          1. 웹서버에 내용을 전송하면, 새로고침을 하게 됨
+          2. 비동기적인 동작이 불가능함 = 전송이 끝날 때까진 아무것도 조작이 불가능함 = 소비자 경험이 ㅈ됨
+          3. GET, POST 밖에 HTTP 메서드를 쓸수가 없음
+ 
+             @ NodeJs 환경에서 FORM 태그를 통한 전송에 PUT이나 DELETE 메서드를 쓰고 싶은 경우
+                1) AJAX 전송을 쓴다
+                2) method를 강제로 변경해주는 라이브러리를 사용
+                   
+                   ex) method-override
+                        1) npm install method-override 터미널에 입력
+                        2) server.js에 보일러 플레이트 코드 입력
+         
+                           const methodOverride = require('method-override')
+                           app.use(methodOverride('_method')) 
+             
+                        3) form 태그에서 url을 날릴 때, '?_method=HTTP메서드' 를 붙이면 다른 HTTP 메서드로 전송 가능하게 덮어써 줌
+         
+                           ex) <form action="/edit?_method=PUT" method="POST"> </form> 
+
+  3. Ajax(Asynchronous JavaScript and XML)를 사용
+      : JavaScript의 함수(fetch)나 라이브러리(express)의 함수를 이용하여 비동기적으로 서버와 데이터를 교환하는 방식
+
+       # 장점
+          1. 웹서버에 내용을 전송해도 새로고침을 안해도 됨
+          2. 비동기적 데이터 교환이 이뤄짐 = 데이터 전송과 관련없이 화면이 유지되고 사용자는 조작이 가능
+          3. NodeJs 환경에서는 Js를 사용하므로, 서버나 화면에서나 같은 방식으로 데이터를 주고받기 쉽다
+             (JS의 fetch() 비동기 함수를 사용하는걸 추천)
+
+       # 단점
+          : 기본적으로 버튼을 지원하는 FORM 태그랑 다르게, JS의 이벤트리스너를 통해 스스로 버튼 동작과 기능을 연결시킬 줄 알아야 해서 좀 과정이 귀찮음
+
+       # fetch 함수 사용법
+          : fetch('도메인', { method : 'HTTP메서드' , headers : { 'Content-Type' : 'application/json' or 'html', body : JSON.stringify( { object멤버명 : 원하는 멤버값 , ... ,  object멤버명2 : 원하는 멤버값2} ) } })
+
+            @ 2번째 parameter인 JS객체의 멤버변수에 대해 설명
+               - method : HTTP메서드가 뭔지를 함수에 기입
+               - headers : HTTP의 headers 영역에 들어갈 메타정보를 JS객체 형태로 기입.. (Content-Type를 기입하는 이유는 이게 HTML인지 JSON인지를 받는 쪽에서 알아먹게 하기 목적)
+               - body : 원하는 데이터 형식를 JSON 형식으로 담음
 
 - rendering의 종류
    1. server-side rendering (SSG)
@@ -88,7 +171,7 @@
              2) 글목록.html 파일에 꽂아넣고
              3) 그 html 파일을 서버에서 보내줌
 
-         EX) EJS (JSP 1.5에서 쓰던 그 스크릿틀립(<% %>, <%= %>, <%- %>)을 사용함 )
+         EX) EJS (JSP 1.5에서 쓰던 그 템플릿 기호를(<% %>, <%= %>, <%- %>)을 사용함 )
    
    2. client-side rendering (CSG)
        : 서버측이 HTTP API요청을 받으면, DB에서 단지 데이터(보통은 JSON형식)를 보내주고, CLINET측은 그 받은 데이터를 기반으로 HTML구조를 재구성해서 다시 랜더링해 화면에 뿌리는 방식
@@ -213,17 +296,19 @@
                   -> 이를 사용하지 않을 경우, 템플릿 엔진으로부터 API요청이 들어온 JSON 데이터의 body영역이 인간이 알기 어려운 용어로 전달되거나 예기치 못한 에러가 발생할 수 있음
     
            3) express().use(express.urlencoded())
-               : express 라이브러리 환경에서 JSON 형태가 아닌 form 데이터나 멀티파트 등 다른 형태로 요청이 들어온 요청(request)의 body 영역을 파싱(parse)하기 위해 사용되는 URL 인코딩 관련 미들웨어(middleware)
-                  -> 이를 사용하지 않을 경우, 템플릿 엔진으로부터 API요청이 들어온 JSON 이외 데이터의 body영역이 인간이 알기 어려운 용어로 전달되거나 예기치 못한 에러가 발생할 수 있음
+               : express 라이브러리 환경에서 form태그나 멀티파트 등 JSON 형태가 아닌 URL에 데이터가 포함되어 들어오는 형태로 들어온 요청(request)의 body 영역을 파싱(parse)하기 위해 사용되는 URL 인코딩 관련 미들웨어(middleware)
+                  -> 이를 사용하지 않을 경우, 템플릿 엔진으로부터 API요청이 들어온 JSON 이외 데이터의 body영역과 URL에서 얻은 데이터가 인간이 알기 어려운 용어로 전달되거나 예기치 못한 에러가 발생할 수 있음
      
                  # {extended:boolean}
-                    : urlencoded 미들웨어에서 전달된 url 쿼리 스트링을 보안 이슈가 있는 중첩 객체를 통해 파싱할건지를 결정하는 설정값
-                      (= 결과적으로 true, false에 따라 파싱에 사용하는 query String 라이브러리가 달라짐)
-                         -> true (기본)  : 객체 형태로 전달된 데이터 내에서 또 다른 중첩된 객체를 허용함 (= body-parser 모듈을 사용가능하게 하는 초석 )
-                                            -> url 쿼리 스트링을 파싱하는데, 따로 설치가 필요하지만 추가적인 보안 확장이 가능한 npm qs 라이브러리 사용함
-                            false        : 객체 형태로 전달된 데이터 내에서 또 다른 중첩된 객체를 허용 X
-                                            -> url 쿼리 스트링을 파싱하는데, node.js에 기본으로 내장된 queryString 라이브러리 사용함         
+                    : urlencoded 미들웨어에서 전달된 url queryString을 보안 이슈가 있는 중첩 객체를 통해 파싱할건지를 결정하는 설정값
+                       -> 'url?데이터명&데이트값' 이런 식으로 사용하는 그 queryString 맞으니 당연히 보안문제가 생긴다는 의미로.. 그래서 보안성 관련 확장을 허용할지 묻는거
+                           (= 결과적으로 true, false에 따라 파싱에 사용하는 query String 라이브러리가 달라짐)
 
+                              -> true (기본)  : 객체 형태로 전달된 데이터 내에서 또 다른 중첩된 객체를 허용함 (= body-parser 모듈을 사용가능하게 하는 초석 )
+                                                 -> url 쿼리 스트링을 파싱하는데, 따로 설치가 필요하지만 추가적인 보안 확장이 가능한 npm qs 라이브러리 사용함
+                                 false        : 객체 형태로 전달된 데이터 내에서 또 다른 중첩된 객체를 허용 X
+                                                 -> url 쿼리 스트링을 파싱하는데, node.js에 기본으로 내장된 queryString 라이브러리 사용함
+                                               
     
        4. express().set() seris
 
