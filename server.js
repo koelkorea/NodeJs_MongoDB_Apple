@@ -227,10 +227,8 @@ app.delete('/delete', async (요청, 응답)=>{
 
         // client.db('forum').collection('post').updateOne( { _id : new ObjectId(요청.query.id) } );
         //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션에 id가 url queryString id라는 데이터명의 값과 같은 데이터를 찾은뒤 이를 삭제
-        await db.collection('post').deleteOne( { _id : new ObjectId(요청.query.id) } )
-        alert('삭제완료');
+        await db.collection('post').deleteOne( { _id : new ObjectId(요청.query.id) } );
         응답.redirect('/list');
-
     } catch (e) {
         console.log(e);
         응답.status(500).send('DB에러남');

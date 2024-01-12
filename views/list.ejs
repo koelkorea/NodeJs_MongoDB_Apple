@@ -6,16 +6,6 @@
     <link href="/main.css" rel="stylesheet">
     <title>Document</title>
 </head>
-<script>
-
-    for (var i = 0; i < <%= 글목록.length %>; i++){
-        // FORM태그 없이 이벤트리스너를 통한 클릭시 게시물 이벤트 구현
-        document.querySelectorAll('.delete')[i].addEventListener('click', function(){
-            fetch('/delete?id=' +  <%= 글목록 %>[i]._id,  { method : 'DELETE' })
-        });
-    }
-
-  </script>
 <body class="grey-bg">
 
     <!-- include(파일위치)를 통해, js를 붙일 수 있음 -->
@@ -35,7 +25,9 @@
                 <p><%= 글목록[i].content %></p>
                 <!-- 수정화면 이동 버튼 -->
                 <a href="/edit/<%= 글목록[i]._id %>">✏️</a>
-                <span class="delete" data-row="<%= i %>">🗑️</span>
+                <!-- 삭제기능 수행 버튼 -->
+                <span class="delete1">🗑️</span>
+                <span class="delete2" data-id="<%= 글목록[i]._id %>" data-row="<%= i %>">🗑️</span>
             </div>
         </div>
         
@@ -47,4 +39,28 @@
         <%= 날짜 %>
     </div> 
 </body>
+<script>
+
+    <% for (var i = 0; i < 글목록.length; i++){ %>
+
+            // 삭제기능 구현1) FORM태그 없이 이벤트리스너를 통한 클릭시 게시물 이벤트 구현
+            document.querySelectorAll('.delete1')[<%= i %>].addEventListener('click', function(){
+                if( confirm('1번째 방식으로 삭제할까요?') ){
+                    fetch(`/delete?id=<%= 글목록[i]._id %>`,  { method : 'DELETE' })
+                }
+            });
+
+            // 삭제기능 구현2) 구현1에 HTML의 data 속성을 이용하여 만들어진 dataset 객체를 통해 값을 가져와 구현
+            document.querySelectorAll('.delete2')[<%= i %>].addEventListener('click', function(e){
+                if( confirm('2번째 방식으로 삭제할까요?') ){
+                    fetch('/delete?id=' + e.target.dataset.id, { method : 'DELETE' })
+                }
+            });
+    <% } %> 
+
+    document.querySelectorAll('.delete')[0].addEventListener('click', function(e){
+        fetch('/delete?docid=' + e.target.dataset.id, { method : 'DELETE' })
+    }) 
+
+</script>
 </html>
