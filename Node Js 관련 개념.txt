@@ -5,6 +5,7 @@
 
     # 웹서버
        : 누가 어떤 홈페이지 도메인(URL)으로 접속하면 거기맞는 html을 보내주는 서버
+          -> (주의) 클라이언트가 화면에서 db조작을 해서 CRUD 명령어를 실행해도, 화면이 그에 맞춰 반응하려면, 반응형 동작을 비동기적으로 지원해주는 프레임워크 쓰지 않는이상, 새로고침없이 화면 자체에서 그 데이터를 실시간으로 반영하진 않음
 
     # 포트(port)
        : 내 컴퓨터의 ip가 일종의 국가면, 포트는 항구와 같은 의미로.. 이 포트라는 단위를 기준으로 컴퓨터는 여러 컴퓨터 및 어플리케이션들과의 통신을 구분하여 주고 받을 수 있도록 할당받음 
@@ -78,37 +79,77 @@
            2. 어떤 코드 영역을 실행시 잠재적으로 에러가 나올수도 있는 코드가 예상된다??
                : try, catch(e) 구문을 통해, 에러가 예상되는 코드를 영역으로 묶은뒤 거기서 일어나는 에러를 처리할 수 있는 catch영역 코드를 작성하기
 
-- (중요) 웹서버에 데이터를 전송하는 방식
+- (중요) 웹페이지 -> 웹서버로 데이터를 전송하는 방식
   1. URL의 일부로 데이터를 포함해서 보냄..
       : 말 그대로 URL에 데이터를 그냥 무식하게 포함해서 보냄
 
+       # 응용 & 연계에 필요지식 
+          : 여기 내용들을 통해, 웹페이지에서 API를 호출하는 url에 데이터를 기입하는 과정에 도움이 될 수 있음
+
+          1) eventlistener(이벤트 리스너)
+              : js가 HTML요소를 접근하는데 사용하는 DOM 객체에서 어떤 형식의 이벤트(클릭, 드래그 등등)가 발생할 경우, 어떻게 처리하라는 내용을 가지고 처리해주는 js객체인 함수
+                (= 해당 HTML요소에 이벤트가 발생하면, 그에 대응하는 이벤트리스너 함수로 연결해줘 이벤트 내용을 실행함)
+                    -> DOM요소.addEventListener('이벤트종류', function(e){ 내용 }); 과 같은 형식으로 어떤 HTML객체에 이벤트가 발생했을때 어떤식으로 반응하라고 코드를 짜서, 원하는 웹페이지 기능을 만들 수 있음
+          
+          2) e(이벤트 객체)
+              : 이벤트를 발생시킨 HTML요소와 발생한 이벤트 그 자체에 대한 정보나 함수를 가지는 js객체로.. 정말 다양한 내용들을 담고 있어 이벤트 내용을 짜는데 유용함
+                (= 이를 쓰기 위해서는 설정한 이벤트의 콜백함수인 이벤트리스너 함수의 1번쨰 파라미터를 적어놔야 하며, 주로 e라고 적음
+
+                ex) document.querySelectorAll('.delete2')[<%= i %>].addEventListener('click', function(e){ e.이벤트객체명으로 원하는 멤버명을 찾아서 사용   });
+
+          3) HTML dataset 속성
+             : HTML요소에 `data-dataset명="내용"` 과 같은 형식으로 HTML 속성을 입력하고 난 뒤, 해당 HTML요소에 이벤트가 발생한다면, 그 이벤트에 반응하는 이벤트리스너의 이벤트객체 e를 통해 해당 속성값들을 바로 참고할수 있도록 하기 위한 속성
+                -> 이벤트함수의 콜백함수 parameter인 이벤트리스너 함수 스코프에서 e.target.dataset.dataset명 으로 값을 불러와서 사용가능함
+
+                   ex) <span class="delete2" data-id="<%= 글목록[i]._id %>" data-row="<%= i %>">🗑️</span>
+
+                       document.querySelectorAll('.delete2')[<%= i %>].addEventListener('click', function(e){
+                          fetch('/delete?id=' + e.target.dataset.id, { method : 'DELETE' })
+                       });
+
        # 방법
           1) URL 파라미터
-              : NodeJS에서 설정을 통해 URL에서 파라미터로 보낸 정보의 위치를 서버가 찾고 판별할 수 있는 형식을 API의 URL에 적어서, 사용자 측에서 보낸 API 요청에 응답할 때 URL에서 데이터를 특정 변수명으로 대입해서 쓰는 방식 
+              : NodeJS를 사용한 서버 API 설정을 통해 URL에서 파라미터로 보낸 정보의 위치를 서버가 찾고 판별할 수 있는 형식을 API의 URL에 적어서, 사용자 측에서 보낸 API 요청에 응답할 때 URL에서 데이터를 특정 변수명으로 대입해서 쓰는 방식 
                  -> 그렇게 받은 정보는 API {} 내부에서 '요청parameter명.params'로 접근하여 해당 URL파라미터들을 모아 기록한 객체에 쓸 수 있음
                     (= '요청parameter명.params' 형식으로 사용이 가능한 이유는 얘도 queryString이나 qs라는 NodeJs의 라이브러리를 사용하기 떄문)
-
-                 ex) app.post('/delete/:id/:name', async (요청, 응답)=>{
-                        요청.params = [ {id : id값} , {name : name값} ]
-                        요청.params.id 이런식으로 접근 가능
-                     });
+                       
+                     ex) [웹페이지에서 API를 호출시 정해진 부분에 URL 파라미터 기입]
+                              
+                          document.querySelectorAll('.list')[<%= i %>].addEventListener('click', function(e){
+                             fetch('/detail/ + e.target.dataset.id, { method : 'GET' })
+                          });
+                        
+                         [server.js에서는 url 파라미터를 ':ID명'으로 기입 후, 보낸 내용들을 '요청.params'를 통해 읽을수 있음]
+                     
+                          app.get('/detail/:id', async (요청, 응답) => {
+                             let result = await db.collection('post').findOne({_id : new ObjectId(요청.params.id)});    <-  요청.params 구성은 [ {para1 : para1값} , {para2 : para2값} ] 이고, 요청.query.id 이런식으로 접근 가능
+                             응답.render('detail.ejs', { 상세글 : result })
+                          });
 
                @ 장점
                   1. 그나마 보내는 데이터가 어떤 칼럼에서 나오는지를 가리기에 보안적인 면에서 나을수는 있음
 
                @ 단점
-                  1. 약간이나마 서버설정이 필요하다는 단점 존재
+                  1. 약간이나마 서버 API의 URL에 설정이 필요하다는 단점 존재
                   2. POST 방식을 쓰면 그나마 낫지만, 기본적으로 URL에 데이터를 포함해서 보내기에 보안이 씹망
 
           2) queryString
-              : 아무런 설정이 필요없이 URL에 대놓고, '도메인?데이터이름=데이터값&...' 이런식으로 데이터를 전송하는 방식... 
-                 -> 그렇게 받은 정보는 API {} 내부에서 '요청parameter명.query'로 접근하여 해당 URL파라미터들을 모아 기록한 객체에 쓸 수 있음
+              : 서버 API 도메인주소에 파라미터 관련 아무런 설정이 필요없이, 웹페이지에서 fetch API나 axios 등을 사용하여 URL에 대놓고, '도메인?데이터이름=데이터값&...' 이런식으로 데이터를 전송하는 방식... 
+                 -> 그렇게 받은 정보는 웹서버 API {} 내부에서 '요청parameter명.query'로 접근하여 해당 URL파라미터들을 모아 기록한 JS객체 형식으로 접근가능
                     (= '요청parameter명.query' 형식으로 사용이 가능한 이유는 얘도 queryString이나 qs라는 NodeJs의 라이브러리를 사용하기 떄문)
 
-                 ex) app.post('/delete?id=<%= 글목록[i]._id%>&title=<%= 글목록[i].title %>', async (요청, 응답)=>{
-                        요청.query = [ {id : id값} , {name : name값} ]
-                        요청.query.id 이런식으로 접근 가능
-                     });
+                 ex) [웹페이지 event설정을 통한 fetch API에 쿼리스트링 기입]
+                       
+                      document.querySelectorAll('.list')[<%= i %>].addEventListener('click', function(e){
+                         fetch('/detail?id=' + e.target.dataset.id, { method : 'GET' })
+                      });
+                 
+                     [server.js에서는 아무런 url 파라미터 같은걸 안 써줘도 보낸 내용들을 '요청.query'를 통해 읽을수 있음]
+                     
+                      app.post('/detail', async (요청, 응답)=>{
+                         await db.collection('post').deleteOne( { _id : new ObjectId(요청.query.id) } );    <-  요청.query의 구성은 [ {id : id값} , {name : name값} ] 이고, 요청.query.id 이런식으로 접근 가능
+                         응답.render('detail.ejs', { 상세글 : result })
+                      });
 
                @ 장점
                   : 그냥 사용이 ㅈㄴ 간편하며, 어떤 라이브러리나 설정이 필요없이 그냥 기본적으로 지원됨
@@ -150,20 +191,60 @@
        # 장점
           1. 웹서버에 내용을 전송해도 새로고침을 안해도 됨
           2. 비동기적 데이터 교환이 이뤄짐 = 데이터 전송과 관련없이 화면이 유지되고 사용자는 조작이 가능
+              -> (참고!) 그렇기에  ajax를 통한 통신을 주고받는 기능에서는 다른 페이지로 연결하여 새로고침을 유발하는 redirect나 render 같은 함수를 API {}안에 쓰지 않는다... 그러면 의미가 없자나..
           3. NodeJs 환경에서는 Js를 사용하므로, 서버나 화면에서나 같은 방식으로 데이터를 주고받기 쉽다
              (JS의 fetch() 비동기 함수를 사용하는걸 추천)
 
        # 단점
           : 기본적으로 버튼을 지원하는 FORM 태그랑 다르게, JS의 이벤트리스너를 통해 스스로 버튼 동작과 기능을 연결시킬 줄 알아야 해서 좀 과정이 귀찮음
 
-       # fetch 함수 사용법
-          : fetch('도메인', { method : 'HTTP메서드' , headers : { 'Content-Type' : 'application/json' or 'html', body : JSON.stringify( { object멤버명 : 원하는 멤버값 , ... ,  object멤버명2 : 원하는 멤버값2} ) } })
+       # 관련 함수 사용법
+          1. fetch API
+              : fetch('도메인', { method : 'HTTP메서드' , headers : { 'Content-Type' : 'application/json' or 'html', body : JSON.stringify( { object멤버명 : 원하는 멤버값 , ... ,  object멤버명2 : 원하는 멤버값2} ) } })
+                 -> 이후 받아온 값을 쓰고 싶은경우?
+                     -> (주의) fetch api를 통해 받아온 값은 반드시 json이나 text 등 다른 형식으로 전환을 해줘야 함 <-> axios는 그딴거 없어도 됨
+                     
+                     1. then, catch, finally 구문을 쓰던가
+    
+                        ex) fetch('도메인')
+                            .then( (응답) => 응답.json) )            <- (주의) 반드시 받아온 결과값을 변환부터 해야함
+                            .then( (result) => { 성공시 실행할코드})
+                            .catch((error)=>{ 인터넷문제 등으로 실패시 실행할코드 })
+    
+                     2. async await를 사용하여 비동기 코드 진행을 일부 동기적으로 통제
+                         -> (중요!) await가 붙으면, 해당 함수 {}안의 해당 비동기코드가 응답이 돌아올떄까지 이를 기다려줌
+                         -> 그런 의미에서 fetch를 통한 API 호출은 async await를 사용시 반드시 await를 붙여줘야함.. 그래야 fetch가 끝날떄까지 기다려 줌 
+    
+                        ex) document.querySelectorAll('.data').addEventListener('click', async function(e){
+                              let result = await fetch('도메인' , { method : 'GET' }).json;
+                              await (result) => { 성공시 실행할코드 };
+                            });
+    
+                @ 2번째 parameter인 JS객체의 멤버변수에 대해 설명
+                   - method : HTTP메서드가 뭔지를 함수에 기입
+                   - headers : HTTP의 headers 영역에 들어갈 메타정보를 JS객체 형태로 기입.. (Content-Type를 기입하는 이유는 이게 HTML인지 JSON인지를 받는 쪽에서 알아먹게 하기 목적)
+                   - body : 원하는 데이터 형식를 JSON 형식(= js객체, js배열을 string 형식으로 제작)으로 담음
 
-            @ 2번째 parameter인 JS객체의 멤버변수에 대해 설명
-               - method : HTTP메서드가 뭔지를 함수에 기입
-               - headers : HTTP의 headers 영역에 들어갈 메타정보를 JS객체 형태로 기입.. (Content-Type를 기입하는 이유는 이게 HTML인지 JSON인지를 받는 쪽에서 알아먹게 하기 목적)
-               - body : 원하는 데이터 형식를 JSON 형식으로 담음
+          2. axios 라이브러리
+              : axios 설치후, axios.HTTP메서드('도메인명')을 통해 웹서버 API를 호출하면, 알아서 받아온 값을 json으로 바꿔주기까지 함
+                (= 받아온 값은 반드시 json이나 text 등 다른 형식으로 전환을 해주는 과정 생략)
+                    -> 이후 받아온 값을 쓰고 싶은경우?
 
+                       1. then, catch, finally 구문을 쓰던가
+      
+                          ex) axios.get('도메인')
+                              .then( (result) => { 성공시 실행할코드})
+                              .catch( (error) => { 인터넷문제 등으로 실패시 실행할코드 })
+      
+                       2. async await를 사용하여 비동기 코드 진행을 일부 동기적으로 통제
+                           -> (중요!) await가 붙으면, 해당 함수 {}안의 해당 비동기코드가 응답이 돌아올떄까지 이를 기다려줌
+                            -> 그런 의미에서 axios 통한 API 호출은 async await를 사용시 반드시 await를 붙여줘야함.. 그래야 axios http메서드 함수가 끝날떄까지 기다려 줌 
+      
+                          ex) document.querySelectorAll('.data1').addEventListener('click', async function(e){
+                                let result = await axios.get('도메인');
+                                await (result) => { 성공시 실행할코드 };
+                              });
+  
 - rendering의 종류
    1. server-side rendering (SSG)
        : 서버측에서 HTTP API요청을 받으면, 그 요청에 맞는 HTML을 구성해서 CLIENT에게 보내주고, CLIENT측 브라우저는 이를 화면에 랜더링해주기만 하는 방식
@@ -245,6 +326,7 @@
            : 해당 포트번호를 통해 통신하는 웹서버를 띄운 뒤, 성공하면 성공메시지를 터미널에 보내라는 명령어  
 
        2. HTTP 메서드 seris
+           : 웹페이지에서 웹서버로 API를 호출할 때, 사용하는 메서드 
        
            1) express().http메서드명('url', (요청parameter, 응답parameter) => { 내용 } )
                : express 기반으로 만들어진 서버 객체에 HTTP GET 메서드로 해당 URL을 요청하면, 그에 해당하는 내용을 응답하도록 API를 구성하는 메서드
@@ -252,12 +334,36 @@
                  @ URL 파라미터 문법('URL/:parameter명')을 사용한 URL 설계
                     : ':parameter명'을 url에 붙임으로서, url값이 입력시 해당 :parameter명 영역의 값을 웹페이지 API 스코프 내부에서 '요청.params'를 통해 JS객체 형식으로 한 큐에 볼 수 있음
 
-                       ex) app.get('/detail/:id', async (요청, 응답) => {
-                           
-                              // 요청.params를 통해 해당 API에 들어온 url파라미터를 js객체 형식으로 전부 얻을 수 있음.. 그리고 그 중 id라는 parameter명을 pick함 
-                              let result = await db.collection('post').findOne({_id : new ObjectId(요청.params.id)});
-                              응답.render('detail.ejs', { 상세글 : result })
-                           });
+                       ex) [웹페이지에서 API를 호출시 정해진 부분에 URL 파라미터 기입]
+                                
+                            document.querySelectorAll('.list')[<%= i %>].addEventListener('click', function(e){
+                               fetch('/detail/ + e.target.dataset.id, { method : 'GET' })
+                            });
+                          
+                           [server.js에서는 url 파라미터를 ':ID명'으로 기입 후, 보낸 내용들을 '요청.params'를 통해 읽을수 있음]
+                       
+                            app.get('/detail/:id', async (요청, 응답) => {
+                               let result = await db.collection('post').findOne({_id : new ObjectId(요청.params.id)});   <-  요청.params 구성은 [ {para1 : para1값} , {para2 : para2값} ] 이고, 요청.query.id 이런식으로 접근 가능
+                               응답.render('detail.ejs', { 상세글 : result })
+                            });
+
+                 @ queryString 문법('URL?데이터이름=데이터값&데이터이름2=데이터값2')을 사용한 URL 설계
+                    : 웹페이지에서 fetch API나 a태그의 url에 ? 이후 데이터이름=데이터값을 페어로 &을 기점으로 하나하나 url에 기입하여 입력시..
+                       -> 서버 API 스코프는 url에 아무런 대처를 하지 않아도, 내부에서 '요청.query '를 통해 JS객체 형식으로 한 큐에 볼 수 있음
+                    
+                          ex) [웹페이지 event설정을 통한 fetch API에 쿼리스트링 기입]
+                                
+                               document.querySelectorAll('.list')[<%= i %>].addEventListener('click', function(e){
+                                  fetch('/detail?id=' + e.target.dataset.id, { method : 'GET' })
+                               });
+                          
+                              [server.js에서는 아무런 url 파라미터 같은걸 안 써줘도 보낸 내용들을 '요청.query'를 통해 읽을수 있음]
+                              
+                               app.post('/detail', async (요청, 응답)=>{
+                                  await db.collection('post').deleteOne( { _id : new ObjectId(요청.query.id) } );    <-  요청.query의 구성은 [ {id : id값} , {name : name값} ] 이고, 요청.query.id 이런식으로 접근 가능
+                                  응답.render('detail.ejs', { 상세글 : result })
+                               });
+
 
                  @ 콜백함수의 내용을 통한 응답내용 메서드
                     a. 응답parameter.send('보내고 싶은 내용')

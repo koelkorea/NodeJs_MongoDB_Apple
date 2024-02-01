@@ -218,7 +218,7 @@ app.post('/revise/:id', async (요청, 응답)=>{
 
 });
 
-// (과제1) 목록화면에서 도메인/delete라는 url에 AJAX 방식을 사용하고 데이터는 url에 queryString 방식을 통해 delete 형식으로 보낸 데이터를 서버에서 받아 DB에 입력하는 API 구현
+// (과제1) 목록화면에서 도메인/delete라는 url에 AJAX 방식을 사용하고 데이터는 fetch API를 통해 queryString 방식으로 delete라는 문구를 URL에 포함해서 보낸 데이터를 서버에서 받아 DB에 입력하는 API 구현
 app.delete('/delete', async (요청, 응답)=>{
 
     try{
@@ -228,7 +228,7 @@ app.delete('/delete', async (요청, 응답)=>{
         // client.db('forum').collection('post').updateOne( { _id : new ObjectId(요청.query.id) } );
         //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션에 id가 url queryString id라는 데이터명의 값과 같은 데이터를 찾은뒤 이를 삭제
         await db.collection('post').deleteOne( { _id : new ObjectId(요청.query.id) } );
-        응답.redirect('/list');
+        응답.send('삭제완료');
     } catch (e) {
         console.log(e);
         응답.status(500).send('DB에러남');
