@@ -235,3 +235,83 @@ app.delete('/delete', async (요청, 응답)=>{
     }
 
 });
+
+
+// 목록페이지에서 페이지네이션 구축하기
+
+// 1. 페이지네이션의 번호를 클릭시, skip, limit 함수 사용하여 db에서 그에 해당하는 데이터를 알아서 가져오게 처리
+//     -> (장점) 웹서버의 부담 줄어듬
+//     -> (단점) 숫자가 커지면, 그만큼 처리할 데이터 문제로 성능이슈 존재
+
+// 도메인/list/paging/ver1/page를 들어가게 된다면?
+//  -> 목록 페이지와 같지만, 읽어오는 데이터를 클릭하는 페이지네이션 번호에 맞는 데이터로 받아오게 할 예정
+//     (페이지네이션은 일반적인 기준대로 한 페이지당 5개의 데이터를 받아오게 할 예정)
+app.get('/list/paging/ver1/:page', async (요청, 응답) =>{
+
+    // client.db('forum').collection('post').find().skip(숫자).limit(숫자).toArray();
+    //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션의 복수 데이터를 'skip의 번호만큼 건너뛰고, limit의 번호만큼' 가져와서 객체배열 형태로 가져오는 메서드
+    let result = await db.collection('post').find().skip( (요청.params.page - 1) * 5 ).limit(5).toArray();
+
+    // list.ejs라는 템플릿 파일에 result, date에 담겨있던 자료값이 글목록이라는 변수명으로 옮겨짐
+    응답.render('list.ejs', { 글목록 : result });       
+})
+
+// 도메인/list2/paging/ver2/page를 들어가게 된다면?
+//  -> 목록 페이지와 같지만, 페이지네이션 번호에 맞는 데이터만큼만 출력하게 하라고 할 예정
+//     (페이지네이션은 일반적인 기준대로 한 페이지당 5개의 데이터를 받아오게 할 예정)
+app.get('/lis2/paging/ver2/:page', async (요청, 응답) =>{
+
+    // client.db('forum').collection('post').find().toArray();
+    //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션의 복수 데이터를 객체배열 형태로 가져오는 메서드
+    let original = await db.collection('post').find().toArray();
+
+    // js배열.slice(숫자1, 숫자2)
+    //  : 원본 js배열에 변화를 가하지 않는 함수형 프로그래밍 방식의 함수로, 대상 배열의 숫자번째 index부터 숫자2만큼의 요소를 가져와서 결과값 js배열로 반환
+    //     -> 함수형 프로그래밍 패러다임 따름 = 함수의 parameter로 들어간 대상에는 영향을 주면 안되며, 함수는 단지 자신의 영역 {}안에서만 영향력을 발휘하여 결과값을 출력하는 것까지만 기능을 담당해야 한다.. 뭐 그런 취지 
+    let result = original.slice((요청.params.page - 1) * 5, 5);
+
+    // list.ejs라는 템플릿 파일에 result, date에 담겨있던 자료값이 글목록이라는 변수명으로 옮겨짐
+    응답.render('list.ejs', { 글목록 : result });       
+})
+
+// 2. collection의 id를 숫자로 구분하여, x번째 데이터를 찾은뒤 db에서 5개의 데이터만 가져오라고 명명
+//     -> (장점) id를 숫자로 지정하니 직관적이고, 또 빠르다..
+//     -> (단점) Mongo DB에는 없는 auto increment기능을 구현하던가, DB에 뭔가 변화가 일어날 때 자동으로 실행되는 코드인 trigger를 사용해서 구현하던가 해야함
+
+//         [직접구현]
+//          1) counter 컬렉션에 있던 document 를 찾아와서 count : 에 기재된 값을 출력해봅니다. 
+//          2) 그 값에 +1을 한 다음 그걸 _id란에 기입해서 새로운 글을 발행합니다.
+//              -> { _id : 1, title : 어쩌구 } 이런게 발행되겠군요.
+//          3) 성공적으로 발행된걸 확인하면 counter 컬렉션의 document에 있던 count : 항목을 +1 해줍니다.
+//          4) updateOne 쓰면 되겠군요. 
+
+//         [trigger 사용한 mongoDB의 권장]
+//          -> https://www.mongodb.com/basics/mongodb-auto-increment
+
+// 3. 페이지네이션의 번호를 클릭시, 이미 받은 데이터를 기반으로 client 단에서 js를 통해 보여줄 데이터를 처리함
+//     -> (장점) db가 할 일 줄어듬  
+//               ex) db.collection('post').find({_id : { $gt : 1000 }}).limit(5)
+//     -> (단점) 언제나 데이터 전체를 가져오기에, 초기 데이터 전송에 부담이 큼 + 보안상으로 문제도 있을수 있음
+
+
+// 이전, 다음페이지 구축하기
+
+// 1. 방금 본 게시물의 id를 기준으로 db에서 5개의 데이터만 가져오라고 명명
+//     -> (장점) id를 기준으로 데이터를 찾으니 빠르다..
+//     -> (단점) 현재 페이지의 1번째 id를 기준으로 한 거라, 다음 페이지나 이전 페이지 말고는 쓰기 힘들다...
+
+// 도메인/list/next/id를 들어가게 된다면?
+//  -> 목록 페이지와 같지만, 전달받은 데이터 기준 5개의 데이터만 받아오게 할 예정
+app.get('/list/next/:id', async (요청, 응답) => {
+    let result = await db.collection('post').find({_id : {$gt : new ObjectId(요청.params.id) }}).limit(5).toArray();
+    응답.render('list.ejs', { 글목록 : result });
+}) 
+
+app.get('/list/before/:id', async (요청, 응답) => {
+    let result = await db.collection('post').find({_id : {$lt : new ObjectId(요청.params.id) }}).sort( {_id : -1} ).limit(5).sort( {_id : 1} ).toArray();
+    응답.render('list.ejs', { 글목록 : result });
+}) 
+
+// 2. 이미 받은 데이터를 기반으로 client 단에서 js를 통해 보여줄 데이터를 처리함
+//     -> (장점) db가 할 일 줄어듬
+//     -> (단점) 언제나 데이터 전체를 가져오기에, 초기 데이터 전송에 부담이 큼 + 보안상으로 문제도 있을수 있음
