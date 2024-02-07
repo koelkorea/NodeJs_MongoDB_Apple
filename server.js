@@ -91,7 +91,7 @@ app.get('/list', async (요청, 응답) =>{
     console.log(result);
 
     // list.ejs라는 템플릿 파일에 result, date에 담겨있던 자료값이 글목록이라는 변수명으로 옮겨짐
-    응답.render('list.ejs', { 글목록 : result, 날짜 : date });       
+    응답.render('list2.ejs', { 글목록 : result, 날짜 : date });       
 })
 
 // (과제) /time 이라고 접속하면 현재 서버의 시간을 보내주는 기능을 만들어봅시다.
@@ -103,17 +103,14 @@ app.get('/time', async (요청, 응답) =>{
 })
 
 
-// 목록페이지에서 페이지네이션 (동기적) 구축하기
+// [(동기적) 목록페이지 페이지네이션]
 
-// 1. 페이지네이션의 번호를 클릭하면, 최종적으로 그 부분에 해당하는 데이터만 남도록 함
+// 1. '페이지네이션 값' 이용
+//    -> 이를 통해 다음, 이전 버튼 기능도 현재 페이지 번호를 parameter로 가공하여 응용가능
 
-// 1) db에서 데이터를 직접 가공한 뒤 제공
-//     -> (장점) 웹서버의 부담 줄어듬
-//     -> (단점) 숫자가 커지면, 그만큼 처리할 데이터 문제로 성능이슈 존재
-
-//    도메인/list/paging/ver1/page를 들어가게 된다면?
-//     -> 목록 페이지와 같지만, 읽어오는 데이터를 클릭하는 페이지네이션 번호에 맞는 데이터로 받아오게 할 예정
-//        (페이지네이션은 일반적인 기준대로 한 페이지당 5개의 데이터를 받아오게 할 예정)
+//    1) db에서 데이터를 직접 가공한 뒤 제공
+//        -> (장점) 웹서버의 부담 줄어듬
+//        -> (단점) 숫자가 커지면, 그만큼 처리할 데이터 문제로 성능이슈 존재
 app.get('/list/paging/ver1/:page', async (요청, 응답) =>{
 
     // client.db('forum').collection('post').find().skip(숫자).limit(숫자).toArray();
@@ -129,13 +126,9 @@ app.get('/list/paging/ver1/:page', async (요청, 응답) =>{
     응답.render('list.ejs', { 글목록 : result, 날짜 : date, 갯수 : count, 페이지 : 요청.params.page });       
 })
 
-// 2) db에서 데이터를 가져오되, 가공은 웹서버에서 담당
-//     -> (장점) db서버에 부담이 줄어들게 됨
-//     -> (단점) mongoDB에서 쉽게 지원하는 기능을 굳이 웹서버 선에서 정리하기에, 혼잡하기도 하고 디버깅 같은게 좀 피곤하며.. 결정적으로 API호출때마다 DB를 들쑤시는건 똑같음
-
-// 도메인/list/paging/ver2/page를 들어가게 된다면?
-//  -> 목록 페이지와 같지만, 페이지네이션 번호에 맞는 데이터만큼만 출력하게 하라고 할 예정
-//     (페이지네이션은 일반적인 기준대로 한 페이지당 5개의 데이터를 받아오게 할 예정)
+//    2) db에서 데이터를 가져오되, 가공은 웹서버에서 담당
+//        -> (장점) db서버에 부담이 줄어들게 됨
+//        -> (단점) mongoDB에서 쉽게 지원하는 기능을 굳이 웹서버 선에서 정리하기에, 혼잡하기도 하고 디버깅 같은게 좀 피곤하며.. 결정적으로 API호출때마다 DB를 들쑤시는건 똑같음
 app.get('/list/paging/ver2/:page', async (요청, 응답) =>{
 
     // client.db('forum').collection('post').find()
@@ -159,70 +152,26 @@ app.get('/list/paging/ver2/:page', async (요청, 응답) =>{
     응답.render('list.ejs', { 글목록 : result, 날짜 : date, 갯수 : count, 페이지 : 요청.params.page });         
 })
 
-// 2. collection의 id를 숫자로서 일종의 index로 구분하여, x번째 데이터를 찾은뒤 db에서 5개의 데이터만 가져오라고 명명
-//     -> (장점) id를 숫자로 지정하니 직관적이고, 또 빠르다..
-//     -> (단점) Mongo DB에는 없는 auto increment기능을 구현하던가, DB에 뭔가 변화가 일어날 때 자동으로 실행되는 코드인 trigger를 사용해서 구현하던가 해야함
+// 2. 'collection 컬럼 데이터 값'을 이용
+//    -> 이를 통해 다음, 이전 버튼 기능도 현재 페이지 번호를 parameter로 가공하여 응용가능
 
-//         [직접구현]
-//          1) counter 컬렉션에 있던 document 를 찾아와서 count : 에 기재된 값을 출력해봅니다. 
-//          2) 그 값에 +1을 한 다음 그걸 _id란에 기입해서 새로운 글을 발행합니다.
-//              -> { _id : 1, title : 어쩌구 } 이런게 발행되겠군요.
-//          3) 성공적으로 발행된걸 확인하면 counter 컬렉션의 document에 있던 count : 항목을 +1 해줍니다.
-//          4) updateOne 쓰면 되겠군요. 
+//    1) 방금 뜬 화면의 특정 위치의 게시물을 id를 기준으로 전 or 후 db에서 5개의 데이터만 가져오라고 명명
+//        -> (장점) id를 기준으로 데이터를 찾으니 빠르다..
+//        -> (단점) 1) 현재 페이지의 1번째 id를 기준으로 한 거라, 다음 페이지나 이전 페이지 말고는 쓰기 힘들다...
+//                  2) (주의!) 결정적으로 sort, limit 등등의 데이터 가공함수의 베이스는 db포인터라서 limit(5).sort() 하는 체이닝으로 데이터들을 연속 가공해도 관계형 DB의 쿼리결과처럼 안 나옴 
+//                  3) 어찌어찌 데이터를 뽑아도 정렬이 개판이고, 정렬방침이 이전, 다음이 호환이 힘들어 결국 개판됨
 
-//         [trigger 사용한 mongoDB의 권장]
-//          -> https://www.mongodb.com/basics/mongodb-auto-increment
-
-
-// 이전, 다음페이지 구축하기
-
-// 1. 현재 페이징 번호를 parameter로 받으면, 그걸 활용하여 결과적으로 이전, 다음에 해당하는 데이터를 알아서 가져오게 처리
-//     -> (장점) 웹서버의 부담 줄어듬
-//     -> (단점) 숫자가 커지면, 그만큼 처리할 데이터 문제로 성능이슈 존재
-
-// 1) db에서 데이터를 직접 가공한 뒤 제공
-//     -> (장점) 웹서버의 부담 줄어듬
-//     -> (단점) 숫자가 커지면, 그만큼 처리할 데이터 문제로 성능이슈 존재
-app.get('/list/next/ver1/:page', async (요청, 응답) => {
-    let result = await db.collection('post').find({_id : {$gt : new ObjectId(요청.params.id) }}).limit(5).toArray();
-
-    // 날짜를 보내주기 위한 목적의 변수
-    let date = new Date();
-
-    응답.render('list.ejs', { 글목록 : result, 날짜 : date });   
-}) 
-
-// 2) db에서 데이터를 가져오되, 가공은 웹서버에서 담당
-//     -> (장점) db서버에 부담이 줄어들게 됨
-//     -> (단점) mongoDB에서 쉽게 지원하는 기능을 굳이 웹서버 선에서 정리하기에, 혼잡하기도 하고 디버깅 같은게 좀 피곤하며.. 결정적으로 API호출때마다 DB를 들쑤시는건 똑같음
-app.get('/list/before/ver1/:page', async (요청, 응답) => {
-    let result = await db.collection('post').find({_id : {$lt : new ObjectId(요청.params.id) }}).sort( {_id : -1} ).limit(5).toArray();
-
-    // 날짜를 보내주기 위한 목적의 변수
-    let date = new Date();
-
-    console.log(result);
-
-    응답.render('list.ejs', { 글목록 : result, 날짜 : date });   
-}) 
-
-// 2. 방금 뜬 화면의 특정 위치의 게시물을 id를 기준으로 db에서 5개의 데이터만 가져오라고 명명
-//     -> (장점) id를 기준으로 데이터를 찾으니 빠르다..
-//     -> (단점) 1) 현재 페이지의 1번째 id를 기준으로 한 거라, 다음 페이지나 이전 페이지 말고는 쓰기 힘들다...
-//               2) (주의!) 결정적으로 sort, limit 등등의 데이터 가공함수의 베이스는 db포인터라서 limit(5).sort() 하는 체이닝으로 데이터들을 연속 가공해도 관계형 DB의 쿼리결과처럼 안 나옴 
-//               3) 어찌어찌 데이터를 뽑아도 정렬이 개판이고, 정렬방침이 이전, 다음이 호환이 힘들어 결국 개판됨
-
-// 도메인/list/next/id를 들어가게 된다면?
-//  -> 목록 페이지와 같지만, 전달받은 데이터 기준 5개의 데이터만 받아오게 할 예정
+// 다음 페이지 버튼 (페이지네이션 값 이용시 충돌되어 사용안할 예정)
 app.get('/list/next/ver2/:id', async (요청, 응답) => {
     let result = await db.collection('post').find({_id : {$gt : new ObjectId(요청.params.id) }}).limit(5).toArray();
 
     // 날짜를 보내주기 위한 목적의 변수
     let date = new Date();
 
-    응답.render('list.ejs', { 글목록 : result, 날짜 : date });   
+    응답.render('list2.ejs', { 글목록 : result, 날짜 : date });   
 }) 
 
+// 이전 페이지 버튼 (페이지네이션 값 이용시 충돌 + sort문제로 사용안할 예정)
 app.get('/list/before/ver2/:id', async (요청, 응답) => {
     let result = await db.collection('post').find({_id : {$lt : new ObjectId(요청.params.id) }}).sort( {_id : -1} ).limit(5).toArray();
 
@@ -231,9 +180,24 @@ app.get('/list/before/ver2/:id', async (요청, 응답) => {
 
     console.log(result);
 
-    응답.render('list.ejs', { 글목록 : result, 날짜 : date });   
+    응답.render('list2.ejs', { 글목록 : result, 날짜 : date });   
 }) 
 
+
+
+//    2) collection의 id를 숫자로서 일종의 index로 구분하여, x번째 데이터를 찾은뒤 db에서 5개의 데이터만 가져오라고 명명
+//        -> (장점) id를 숫자로 지정하니 직관적이고, 또 빠르다..
+//        -> (단점) Mongo DB에는 없는 auto increment기능을 구현하던가, DB에 뭔가 변화가 일어날 때 자동으로 실행되는 코드인 trigger를 사용해서 구현하던가 해야함
+   
+//            [직접구현]
+//             1) counter 컬렉션에 있던 document 를 찾아와서 count : 에 기재된 값을 출력해봅니다. 
+//             2) 그 값에 +1을 한 다음 그걸 _id란에 기입해서 새로운 글을 발행합니다.
+//                 -> { _id : 1, title : 어쩌구 } 이런게 발행되겠군요.
+//             3) 성공적으로 발행된걸 확인하면 counter 컬렉션의 document에 있던 count : 항목을 +1 해줍니다.
+//             4) updateOne 쓰면 되겠군요. 
+   
+//            [trigger 사용한 mongoDB의 권장]
+//             -> https://www.mongodb.com/basics/mongodb-auto-increment
 
 // 목록페이지에서 페이지네이션 (비동기적) 구축하기
 

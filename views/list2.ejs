@@ -35,40 +35,15 @@
 
         <!-- 동기적 이전 다음 구현을 위함-->
         <div class="white-box">
+            <a href="/list/before/ver2/<%= 글목록[0]._id %>">이전(db 페이징 처리)</a>
 
-        <% if ( ( (페이지 * 1) != 1 ) || (갯수 == 0) ) { %>
-            <a href="/list/paging/ver1/<%= parseInt(페이지) - 1 %>">이전(db 페이징 처리)</a>
-        <% } %> 
-
-        <% for (var j = 1; j <= Math.trunc(갯수 / 5) + 1; j++){ %>
+        <% for (var j = 1; j <= Math.trunc(글목록.length / 5) + 1; j++){ %>
             <a href="/list/paging/ver1/<%=j%>"> <%= j %> </a>
         <% } %> 
 
-        <% if ( ( (페이지 * 1) != Math.trunc(갯수 / 5) + 1 ) || (갯수 == 0) ) { %>
-            <a href="/list/paging/ver1/<%= parseInt(페이지) + 1 %>">다음(db 페이징 처리)</a>
-        <% } %> 
-
+            <a href="/list/next/ver2/<%= 글목록[글목록.length - 1]._id %>">다음(db 페이징 처리)</a>
         </div>
     
-        </br>
-
-        <!-- 동기적 이전 다음 구현을 위함-->
-        <div class="white-box">
-
-
-        <% if ( (페이지 * 1) != 1 ){ %>
-            <a href="/list/paging/ver2/<%= parseInt(페이지) - 1 %>">이전(웹서버 페이징 처리)</a>
-        <% } %> 
-
-        <% for (var j = 1; j <= Math.trunc(갯수 / 5) + 1; j++){ %>
-            <a href="/list/paging/ver2/<%=j%>"> <%= j %> </a>
-        <% } %> 
-
-        <% if ( (페이지 * 1) != Math.trunc(갯수 / 5) + 1 ){ %>
-            <a href="/list/paging/ver2/<%= parseInt(페이지) + 1 %>">다음(웹서버 페이징 처리)</a>
-        <% } %> 
-
-        </div>
     </div> 
     <div style="text-align: center"> 
         <!-- <%= JSON.stringify(글목록) %> -->
