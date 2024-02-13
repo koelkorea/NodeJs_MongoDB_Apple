@@ -8,12 +8,36 @@
 </head>
 <body class="grey-bg">
 
-    <div class="nav">
-        <a class="logo"><b>NAVIGATION INCLUDE</b></a>
-        <br/>
-        <a>page1</a>
-        <a>page2</a>
+    <div class="nav-structure">
+        <div class="nav">
+            <a class="logo"><b>NAVIGATION INCLUDE</b></a>
+            <br/>
+            <a>page1</a>
+            <a>page2</a>
+        </div>
+
+        <div class="nav">
+            <button><a href="/register" style="margin-right: 0px;">register</a></button>
+            <br/>
+            <button><a href="/login" style="margin-right: 0px;">login</a></button>
+            <button class="logout">logout</button>
+        </div>
     </div>
 
 </body>
+<script>
+
+    // (중요) 비동기적으로 서버와 데이터를 교환하는 js 공식 방식인 fetch api를 사용할 경우, 새로고침이 일어나지 않으므로..
+    //   -> server.js에서 redirect나 render로 다른 페이지로 이동시키는 커맨드에 대한 결정은 화면의 fetch 체이닝 로직 영역에서 결정함..
+    //      (= API {}안에서 redirect(url)을 적으면, 그걸 fetch 체이닝 단계에서 응답의 멤버변수 중 하나인 url안에 가져오는데, 이걸 window.location.href라는 window객체의 속성값으로 직접 넣어서 해결함)  
+    document.querySelector('.logout').addEventListener('click', function(){
+        if( confirm('로그아웃할까요?') ){
+            fetch('/logout',  { method : 'GET' })
+            .then( (응답) => {
+                console.log(응답.url);
+                window.location.href = 응답.url;
+            })
+        }
+    });
+</script>
 </html>

@@ -191,7 +191,7 @@
        # 장점
           1. 웹서버에 내용을 전송해도 새로고침을 안해도 됨
           2. 비동기적 데이터 교환이 이뤄짐 = 데이터 전송과 관련없이 화면이 유지되고 사용자는 조작이 가능
-              -> (참고!) 그렇기에  ajax를 통한 통신을 주고받는 기능에서는 다른 페이지로 연결하여 새로고침을 유발하는 redirect나 render 같은 함수를 API {}안에 쓰지 않는다... 그러면 의미가 없자나..
+              -> (참고!) 화면 전환없이 이뤄지는 요청과 리턴이기에 ajax를 통한 통신을 주고받는 기능에서는 다른 페이지로 연결하여 새로고침을 유발하는 redirect나 render 같은 함수를 server.js의 API {}안에 써봐야 작동하지 않음.. 
           3. NodeJs 환경에서는 Js를 사용하므로, 서버나 화면에서나 같은 방식으로 데이터를 주고받기 쉽다
              (JS의 fetch() 비동기 함수를 사용하는걸 추천)
 
@@ -224,6 +224,12 @@
                    - method : HTTP메서드가 뭔지를 함수에 기입
                    - headers : HTTP의 headers 영역에 들어갈 메타정보를 JS객체 형태로 기입.. (Content-Type를 기입하는 이유는 이게 HTML인지 JSON인지를 받는 쪽에서 알아먹게 하기 목적)
                    - body : 원하는 데이터 형식를 JSON 형식(= js객체, js배열을 string 형식으로 제작)으로 담음
+
+                @ fetch 사용시 주의점
+                   1. fetch api를 통해 받아온 값은 반드시 json이나 text 등 다른 형식으로 전환을 해줘야 함
+                   2. fetch를 통해 server.js의 API를 호출하고, 그 {}안에서 redirect나 render로 다른 페이지로 이동시키는 코드는 form태그나 a태그를 통한 API 호출처럼 바로 동작하지 않음
+                       -> (추정) 비동기적으로 서버와 데이터를 교환하는 fetch api를 사용할 경우, 새로고침이 일어나지 않게 설계되었기에.. redirect 결정은 화면의 fetch 체이닝 로직 영역에서 결정함..
+                            -> server.js의 redirect나 render로 다른 페이지로 이동시키는 커맨드에 반응하지 않게하고, 그 redirect(url)를 fetch의 체이닝 응답결과에 포함시켜 브라우저 주소창인 window.location.href 요소에 바로 주입해 해결
 
           2. axios 라이브러리
               : axios 설치후, axios.HTTP메서드('도메인명')을 통해 웹서버 API를 호출하면, 알아서 받아온 값을 json으로 바꿔주기까지 함
@@ -414,11 +420,248 @@
                                                  -> url 쿼리 스트링을 파싱하는데, 따로 설치가 필요하지만 추가적인 보안 확장이 가능한 npm qs 라이브러리 사용함
                                  false        : 객체 형태로 전달된 데이터 내에서 또 다른 중첩된 객체를 허용 X
                                                  -> url 쿼리 스트링을 파싱하는데, node.js에 기본으로 내장된 queryString 라이브러리 사용함
-                                               
-    
+
        4. express().set() seris
 
            1) express().set('view engine', '템플릿 엔진명');
                : express 라이브러리 환경에서 '템플릿 엔진'을 쓸 수 있게 하는 코드 
 
-                  ex) app.set('view engine', 'ejs');
+                 ex) app.set('view engine', 'ejs');
+
+
+- passport 라이브러리
+   : 로그인 기능 구현시, session, jwt, OAuth 중 원하는 방식을 쉽게 사용해서 구현할 수 있도록 하는 Node.js 기반 라이브러리
+
+    # passport 라이브러리 이해사항 참고사항
+
+      1. IIFE(Immediately Invoked Function Expression) 패턴
+          : 정의한 즉시 호출되어 작동하는 함수 표현식으로.. 함수 코드가 로드되는 시점에서 바로 작동하게 설계되어 있는 패턴의 코드
+            (= 무명 함수 내부에 있는 변수들은 외부로 노출 X + 함수 안에서 모든 게 끝나니 변수 선언과 parameter를 통한 호출같은 짓으로 인한 전역 스코프 오염 X)
+               -> 함수를 정의하고 ()로 감싼뒤, 실제로 투입할 parameter를 꽁무니에 (parameter1, .. , parameter2) 이런식으로 작성해서 마무리하면 됨
+    
+               @ IIFE 문법 
+                  1) (function() { 함수 내용 } )(parameter1, .. , parameter2);
+                      : ()안 함수 내용을 parameter1, .. , parameter2를 기입해서 호출하여 실행함
+                
+                        ex) 무명함수가 정의된뒤, name으로 정의된 paramter 변수 자리에 'Alice'라는 내용을 기입하여, 해당 무명함수를 호출하여 실행
+      
+                             (function(name) {
+                                console.log('Hello, ' + name);
+                             })('Alice');
+    
+                  2) 함수반환함수호출(호출함수parameter들)(parameter1, .. , parameterN);
+                      : (중요!) JS에서는 함수를 반환하는 함수의 경우 바로 ()를 열고 반환된 함수의 parameter의 갯수만큼 parameter1, .. , parameterN를 기입하면 그것을 기입하여 반환한 함수를 호출하여 실행해 줌  
+                          -> JS에서는 함수 또한 1급 객체라 paramter와 return값으로 쓰일 수 있기 때문 
+                          -> 이게 콜백함수를 paramter로 넣으면 참 무궁무진하게 응용이 가능하다...
+
+                        ex) parameter가 1개인 어떤 함수를 return해주는 iife라는 함수 바로 옆인 paramter 기입 자리에 'Alice'라는 내용을 기입하여 return된 함수를 호출하여 실행
+      
+                             iife('parameter')('Alice') = 'parameter'라는 parameter를 가지는 iife가 반환하는 함수('Alice')
+
+                        ex) parameter가 1개인 어떤 함수를 return해주는 무명함수를 콜백함수로 가지는 iife라는 함수 바로 옆인 paramter 기입 자리에 'Alice'라는 내용을 기입하여 return된 함수를 호출하여 실행
+      
+                             iife('parameter', () => {return 어떤함수(param1)} )('Alice') = 어떤함수('Alice')
+
+
+      2. process.nextTick(무명함수)
+          : Node.js 환경에서 작업시간이 오래걸리는 사이드이펙트 코드들을 나중에 주요 작업들이 끝난뒤 실행시키고 싶을 때, parameter인 무명함수 {}안에 내용으로 해당 코드들을 입력함
+
+      3. Strategy 객체
+          : passport 라이브러리의 회원 로그인 인증 방식에 대한 기능 차이를 효율적으로 구성하고자, 디자인 패턴 중 strategy(전략) 패턴 구조를 사용
+             -> passport 라이브러리의 각 로그인 방식에 필요한 js객체는 Strategy 객체를 상속 기반으로 삼아 구성됨
+
+           @ 로그인 인증 방식에 따른 상속된 strategy 객체의 종류
+              -> 이 녀석들을 구현할 로그인 방식에 따라 passport.use()안에 Strategy 생성자 함수 방식으로 넣으면 됨
+
+                  1) Local Strategy(passport-local)
+                      : 로컬 DB에서 로그인 인증 방식
+
+                  2) Social Authentication (passport-kakao, passport-twitter 등)
+                      : 소셜 네트워크 로그인 인증(OAuth) 방식
+
+      4 connect-mongo 라이브러리 
+         : passport 라이브러리 사용시, 생성한 session의 데이터들을 mongoDB에 저장하여 안정적으로 관리하고 싶을떄 사용하는 라이브러리
+           (= passport 라이브러리의 세션데이터 저장 DB를 mongoDB로 연결하기 위한 미드의 미드웨어)
+               -> 이 녀석을 깔면, passport 라이브러리의 session 관련 설정시, 저장 DB관련 정보인 store 멤버변수에 원하는 mongoDB 관련 정보를 쉽게 넣을 수 있음 
+                   -> connect-mongo 라이브러리 설치 및 passport와의 연계법
+                       1) 터미널에 npm install connect-mongo 입력 
+                       2) server.js 파일에 아래 코드 작성하여, 라이브러리 사용을 위한 모듈 import 코드 작성
+                 
+                           ex) const MongoStore = require('connect-mongo')
+                 
+                       3) passport 라이브러리 session 설정 관련 항목에 store 변수에 다음과 같은 내용을 추가
+                           -> 그러면, 알아서 mongoDB에 sessions라는 컬렉션을 만들고 거기에 세션을 알아서 보관하고, 유효기간 지나면 자동으로 삭제해줌
+
+    # passport 라이브러리 사용법
+      1. 터미널에 npm install express-session passport passport-local 입력 
+          -> passport        : 회원인증 도와주는 메인 라이브러리
+          -> passport-local  : 아이디/비번 방식 회원인증쓸 때 쓰는 라이브러리
+          -> express-session : 세션 만드는거 도와주는 라이브러리
+
+      2. server.js 파일에 아래 코드 작성하여, 설치한 3개의 라이브러리 사용을 위한 보일러플레이트 코드(Boilerplate code) 작성
+
+         ex) const session = require('express-session')
+             const passport = require('passport')
+             const LocalStrategy = require('passport-local')
+             
+             app.use(passport.initialize())
+    
+             // express-session 라이브러리를 통해 세션을 만드는 과정.. session() 안의 parameter로 넣을 js객체를 통해, session의 속성 지정 가능
+             app.use(session({
+               secret: '암호화에 쓸 비번',           <- secret : 암호화에 사용한 문자열... 짧으면 뚫리게 됨..
+               resave : false,                      <- resave : 유저가 요청날릴 때 마다 session데이터를 다시 갱신할건지 여부
+               saveUninitialized : false ,          <- saveUninitialized : (기본값 false) 유저가 로그인 안해도 세션을 저장해둘지 여부
+               cookie : { maxAge : 1000 , ... }     <- cookie : (기본값 2주) 해당 세션의 유효기간과 관련된 변수 {}안에 내용을 입력.. 단위는 1/1000초
+               store : MongoStore.create({          <- store  : 세션 데이터를 특정 DB 종류에 저장하기로 결정하여, 그와 관련된 connect-DB명 라이브러리를 깔면 그와 관련 설정을 하게 함
+                 mongoUrl : '님들 DB접속용 URL~~',               -> connect-mongo 라이브러리를 설치 뒤, MongoStore.create 함수에 DB주소와 DB명을 담은 parameter 객체를 통해 session 데이터들을 저장하고 관리해 줌
+                 dbName: 'forum',
+               })
+             })) 
+         
+         // passport 라이브러리의 session을 만드는 코드 (express-session를 통해 지정한 세션의 속성 사용)
+         app.use(passport.session()) 
+
+      3. server.js 파일에 3가지 코드 추가로 작성하여, 로그인 기능에 필요한 기능 코드에 대한 보일러플레이트 코드를 작성
+
+          @ 로그인 정보 검증 담당 코드
+            
+            - 선언법
+              passport.use(new Strategy상속객체 (무명 콜백함수 (아이디, 비번, 콜백함수) => { 유저 입력정보 검증 코드 })
+               : passport 라이브러리에서 유저가 로그인 시도시 제출한 아이디 비번이 각 Strategy 방식이 추구하는 방식과 맞는지를 검증하는 부분을 담당하는 함수 선언
+
+                 ex) passport.use(new LocalStrategy(async (아이디, 비번, 콜백함수) => {
+                     
+                         let result = await db.collection('user').findOne({ username : 아이디})
+                     
+                         if (!result) {
+                             return 콜백함수(null, false, { message: '아이디 DB에 없음' })
+                         }
+                     
+                         if (result.password == 비번) {          <- await bcrypt.compare(비번, result.password) : hashing 처리된 비밀번호와 대초해야 한다면, bcrypt라이브러리의 compare 함수를 사용가능  
+                             return 콜백함수(null, result)
+                         } else {
+                             return 콜백함수(null, false, { message: '비번불일치' });
+                         }
+                     }))
+                
+                [로직 흐름]
+                  1. Strategy상속객체의 생성자 함수의 parameter인 id, password, 콜백함수를 paramter로 가지는 무명함수는 id, password의 검증결과에 따라 다른 내용을 실행하는 '콜백함수'를 실행되도록 설계
+                  2. 그렇게 실행된 무명함수의 콜백함수를 통해 Strategy상속객체 내부의 멤버변수들이 입력되고, passport.use() 함수가 실행되고 로그인 검증 로직이 실행됨
+                      -> (참고!) 추후 웹서버의 API 안에서 passport.authenticate('local', 콜백함수)라는 코드를 통해, 해당 검증 함수를 호출이 가능함.. (단.. '콜백함수'의 parameter를 제대로 넣지 않으면 로직은 작동 X)
+                         
+            - 호출법
+              passport.authenticate('local', 무명 콜백함수(error, user, info) => { 검증결과에 따른 내용 } )(요청, 응답, next)
+               : 앞서 선언한 로그인 정보 검증 함수 선언부인 passport.use( new Strategy상속객체( 무명콜백함수(id, password, 콜백함수) )를 호출하여 '콜백함수'를 반환받고, 거기에 콜백함수(요청, 응답, next)를 paramter를 기입해서 호출하는 코드
+                  -> (주의!) IIFE(즉시호출 함수) 패턴 구조가 사용된 코드
+                  -> (중요!) 무명 콜백함수 내용에는 주로 실패에 대한 경우 메시지를 보내거나, 로그인 성공시 어떻게 할지를 적음
+
+                     ex) app.post('/login', async (요청, 응답, next) => {
+                             passport.authenticate('local', (error, user, info) => {
+                         
+                                 if (error) {
+                                     return 응답.status(500).json(error)
+                                 }
+                                 if (!user) {
+                                     return 응답.status(401).json(info.message)
+                                 }
+                         
+                                 요청.logIn(user, (err) => {
+                         
+                                     if (err) {
+                                         return next(err)
+                                     } else {
+                                         응답.redirect('/list/paging/ver1/1')
+                                     }
+                         
+                                 })
+                         
+                             })(요청, 응답, next)
+                         });
+
+                [passport.authenticate() 호출시 로직 흐름]
+                 1) passport.authenticate('local', 무명 콜백함수1(error, user, info) ) = passport.use(new Strategy( 무명 콜백함수2(id, password, 콜백함수) ) 을 호출
+                     -> (주의) 각자의 무명 콜백함수는 다른 내용을 가지는 함수
+
+                     -> (무명 콜백함수1의 paramter들)
+                          - error : 뭔가 에러시 에러의 내용에 대한 객체가 들어옴
+                          - user  : 아이디/비번 검증 완료된 유저정보가 들어옴
+                          - info  : 아이디/비번 검증 실패시 에러메세지가 들어옴
+            
+                  2) 1번의 결과인 무명 콜백함수2의 parameter인 '콜백함수'의 parameter는 2~3개..
+                     (= 이는 라이브러리 검증 함수 use를 호출한 API쪽에서 자신의 parameter인 (요청, 응답, next)라는 parameter를 제공하여야 실행이 가능함)
+                         -> (중요!) 이를 통해 Passport의 인증 메서드는 요청(request), 응답(response) 관련 내용과, 다음 미들웨어(next)에 접근할 수 있고 실행이 완료됨
+                            (= passport.authenticate('local', 무명 콜백함수1(error, user, info))(요청, 응답, next)라는 즉시실행코드(iife) 패턴으로 호출이 되어야 에러가 없는 이유)
+
+          @ session 생성 및 세션id 브라우저 쿠키에 저장 담당 코드
+          
+            - 선언부
+              passport.serializeUser( 무명 콜백함수(로그인 정보 객체, 콜백함수) => { 세션 정보 생성 코드 }))
+               : 유저가 로그인시에, 세션 객체를 생성하고 그 중 세션 id를 암호화해서 유저의 브라우저 쿠키에 저장하는 기능을 passport 라이브러리에서 담당하는 함수
+                 (= 웹서버의 로그인 기능 관련 API의 코드 중 요청.login() 함수가 호출되어 실행되면 자동으로 실행됨.. )
+                     -> 만들어진 세션정보는 유저가 API를 호출할 때마다 자동으로 웹서버 API의 paramter 무명함수의 paramter인 '요청' 객체에 포함되어 웹서버로 전송되기에 API {}안에서 요청.user로 참고 가능
+                        (하단의 passport.deserializeUser() 함수를 참고)
+
+                     -> (무명 콜백함수의 paramter들)
+                          - 로그인 정보 객체  : 유저의 로그인 정보
+                          - 무명 콜백함수     : parameter로 주어진 정보(주로 세션 id와 유저 id)를 이용해 세션 객체를 만들고 입력해주는 함수
+                              -> (참고) 세션의 유효기간 같은건 알아서 기록해 줌.. 그러니 가장 중요한 id들을 넣자
+                              -> (주의) 단! DB를 연결하지 않으면, 메모리에 세션정보들이 저장됨
+
+                             ex) passport.serializeUser((유저정보, 콜백함수) => {
+                                     process.nextTick(() => {
+                                         콜백함수(null, { id: 유저정보._id, username: 유저정보.username })
+                                     })
+                                 }) 
+
+          @ 유저가 웹서버에 API로 요청시, 세션 유효여부 확인 + 웹서버에 세션정보 보내서 참조 가능 기능 담당 코드
+
+            - 선언부
+              passport.deserializeUser(async 무명콜백함수(로그인 정보 객체, 콜백함수) => { API요청 세션 검증 및 세션정보 API측의 요청정보에 포함 내용 }))
+                 : 유저가 웹서버에 API로 요청을 할 때마다, 쿠키에 위치한 유저의 세션 데이터를 서버가 확인하여 검증하고 문제없으면 데이터를 보내주는 passport 라이브러리에서 담당하는 함수
+                    -> 검증이 끝났다면, 웹서버는 API 호출시 paramter로 보내는 무명함수의 paramter인 요청객체에 그 로그인 된 데이터를 user라는 멤버변수에 담아줌..)
+                       (= 각 API의 {} 안에서 '요청.user' 코드를 통해 그 정보에 접근가능하게 함 )
+    
+                    -> (무명 콜백함수의 paramter들)
+                         - 로그인 정보 객체  : 유저의 로그인 정보
+                         - 무명 콜백함수     : parameter로 주어진 정보(주로 세션 id와 유저 id)를 API에서 사용/참고할 수 있도록 '요청'객체에 보내주는 함수
+                             -> (참고) 세션의 유효기간 같은건 알아서 기록해 줌.. 그러니 가장 중요한 id들을 넣자
+                             -> (주의) 단! DB를 연결하지 않으면, 메모리에 세션정보들이 저장됨   
+    
+                            ex) passport.deserializeUser(async (유저정보, 콜백함수) => {
+                                
+                                    // (하단 참고사항 참고) 유저의 로그인 ID를 이용해 진짜 최신화된 유저정보를 찾음
+                                    let result = await db.collection('user').findOne({_id : new ObjectId(유저정보.id) });
+                                
+                                    process.nextTick(() => {
+                                        return 콜백함수(null, result)
+                                    })
+                                })
+
+                [중요한 참고사항]
+                  : (주의) 세션이 만들어진 시기에 따라.. 적힌 유저의 정보와 실제 유저의 정보가 다를 수 있다는 걸 염두에 두고 deserializeUser를 설계해야 함
+                     1. 세션에 적힌 유저 로그인 정보를 가져오면
+                     2. 그 로그인 정보를 이용해 최신 회원 정보를 DB에서 가져오고
+                     3. 그걸 요청.user에 집어넣는 식으로 코드짜는게 좋음
+                     4. deserializeUser를 정말 필요한 특정 route(페이지나 API)에서만 실행시킨다면, 필요없는 DB조회를 감소시켜 트래픽 감소와 성능향상에 영향을 줄 수 있음
+
+
+- bcrypt 라이브러리
+   : 로그인 기능 구현시, 비밀번호 hashing 기능을 쉽게 사용가능하게 도와주는 Node.js 기반 라이브러리
+      -> 어떤 hashing 알고리즘을 사용할지 + 이를 몇번 반복해서 hashing해줄지 + salt 값을 자동으로 넣어줄지 전부 쉽게 사용가능
+
+    # bcrypt 라이브러리 사용법
+      1. 터미널에 npm install bcrypt 입력 
+      2. server.js 파일에 아래 코드 작성하여, 라이브러리 사용을 위한 모듈 import 코드 작성
+
+         ex) const bcrypt = require('bcrypt') 
+         
+      3. 웹서버 API에 hashing 기능을 관련해서, 다음과 같은 코드를 사용 가능
+          -> 해당 코드는 비동기로 동작하게 설계되어 있음
+
+          1) bcrypt.hash('문자열', 알고리즘 적용횟수) 
+              : '문자열'을 설정된 알고리즘을 횟수만큼 적용해서 hashing처리 함 
+                  -> '알고리즘 적용횟수'가 높을수록 hashing 작업을 중첩해서 수행하여 보안성을 높이나.. 웹서버 성능에 영향을 줄 수 있음
+
+          2) bcrypt.compare('문자열', 'hashing 적용된 문자열')
+              : 어떤 문자열이 hashing 처리된 어떤 문자열과 같은지 비교하는 함수  
+                 -> 문자열 비교기능의 일종의 업그레이드 버전
