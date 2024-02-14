@@ -33,6 +33,85 @@
         5. DELETE
             : 서버에게 데이터를 삭제요청시에 사용
 
+
+- 미들웨어(middleware)
+   : 웹서버의 API가 클라이언트의 요청으로 호출될 시, 응답되기 전에 실행되는 함수를 큰 틀에서 통칭하여 의미
+      ex) API를 실행하기 전에, 현재 요청한 유저가 login을 한 상태인지 API를 응답하기 전에 실행하는 코드 및 함수 내용
+
+    # next()
+       : 미들웨어 함수의 3번째 파라미터로 들어가는 콜백함수로서, 미드웨어의 실행이 완료되었으니, 본 API를 실행시키라는 내용을 가지고 있음
+         (= 미들웨어의 2번째 파라미터인 API 응답 객체가 실행되면, 이 next() 함수를 실행할 방법이 사라져 버리니.. 본 API코드는 작동하지 않음) 
+
+    # 미들웨어(middleware)를 구현하는 방법들
+    
+       1) API의 내용을 작성할 떄, 응답 로직코드의 바로 위에 작성
+
+          ex) express().http메서드명('/어쩌구', (요청, 응답)=>{ 미들웨어 내용 작성 + API내용 });
+
+          ex) function 함수(요청){
+                if(요청.user){ 로그인했군~ }
+              }
+          
+              express().http메서드명('/어쩌구', (요청, 응답)=>{ 함수(요청) + API내용 });
+
+
+      [express 프레임워크를 사용한다면?]
+        : 정확한 내용은 express 영역에서도 설명함
+
+       2) express().http메서드명('/어쩌구', 미드웨어 함수명 or 무명 미드웨어함수, (요청, 응답)=>{ API내용 });
+           : express().http메서드명()을 사용한 API의 parameter를 작성할 때, 특정 함수내용을 미들웨어로서 작동하게 하고 싶을 경우
+              -> express().http메서드명()의 parameter로 'url' , 무명콜백함수(요청, 응답) 사이에 미들웨어로 쓸 함수명이나 무명함수를 작성함
+                 (= 함수명 or 무명함수는 자동으로 API 요청받고 응답코드 실행하기 전 사이시간에 실행됨)
+   
+                  ex) function 함수(요청, 응답){             <- 1개의 parameter만 들어갔으니, 1번째 parameter는 API 요청 관련 정보 객체를 가진다
+                        if(요청.user){ 
+                          로그인했군~ 
+                        } else {
+                          응답.send('로그인안했는데요?')      <- 작동되는 순간 본 API코드는 실행X (= API {} 탈출), 그래서 조건문으로 분기 작성
+                        }
+                      }
+                  
+                      express().http메서드명('/어쩌구', 함수, (요청, 응답)=>{ API내용 });
+               
+                  ex) express().http메서드명('/어쩌구', (요청, 응답, next() ) => { 미들웨어 내용 } , (요청, 응답)=>{ API내용 });
+   
+   
+               @ express().http메서드명()을 사용한 미들웨어 설정시 주의사항
+   
+                  a. (중요!) 미들웨어 자리에 위치한 함수의 parameter는 위치에 따라 자동으로 용도가 결정됨
+                  
+                    - 1번째 paramter
+                       : API 요청 관련 정보 객체
+                         (요청.body, 요청.query, 요청.user 다 사용가능)
+                         
+                    - 2번째 paramter
+                       : API 응답 관련 정보 객체 
+                         (= 응답.redirect, 응답.send, 응답.render 다 사용 가능)
+                            -> BUT! 응답객체를 미드웨어 안에서 작성하고, 이걸 호출하게 된다면, 본 API코드까지 넘어가지 않음
+                               (= 미드웨어의 응답객체 코드 = 함수 {} 안에서의 return 코드)
+                           
+                    - 3번째 paramter
+                       : 콜백으로 쓸 미들웨어가 끝났음을 알리고 본 API의 응답코드로 넘어가게 해주는 next() 함수
+     
+                  b. 미들웨어를 여러개 사용하고 싶으면, [함수1, 함수2, 함수3] 이렇게 array 형태로 넣는거도 가능함
+     
+                      ex) express().http메서드명('/어쩌구', [함수1, 함수2, 함수3] , (요청, 응답)=>{ API내용 });
+
+       3) express().use( (생략가능) URL명, 미드웨어 함수명 or 무명 미드웨어함수)
+           : 특정 함수내용을 미들웨어로서 그 밑에 위치한 모든 express().http메서드명()을 사용한 API에서 작동하게 하고 싶을 경우 사용
+
+              @ express().use()을 사용한 미들웨어 통합 설정시 주의사항
+
+                 a. 해당 코드 하단의 모든 express().http메서드명()을 사용한 API들은 use()안의 미드웨어 함수 내용을 미드웨어로서 실행함
+                    (= (중요!) 위치에 따라 적용범위가 달라진다 ...이 말씀)
+
+                     ex) express().use(checkLogin)     <- 해당 코드 하단의 모든 express().http메서드명()을 사용한 API들은 미들웨어로 checkLogin을 사용...
+
+                 b. use() 함수의 1번째 paramter에 'url명'을 적으면, 해당 url명으로 시작되는 API만 골라서 미들웨어를 적용해줌 
+
+                     ex) express().use('/어쩌구', checkLogin)   <- 해당 코드 하단의 express().http메서드명() 중 URL이 '/어쩌구'로 시작되는 API들은 미들웨어로 checkLogin을 사용...
+
+
 - RESTful(Representational State Transfer) API
    : 웹서버에서 URI + HTTP 메서드를 통해, 사용자와 운영자 모두에게 좋은 방식의 웹서버 API를 설계(= 작명)하는 6가지 방법론으로 이해
      (= 그냥 method, URL만 잘 기입해두면 관습적으로 REST하다고 함... )
@@ -78,6 +157,7 @@
     
            2. 어떤 코드 영역을 실행시 잠재적으로 에러가 나올수도 있는 코드가 예상된다??
                : try, catch(e) 구문을 통해, 에러가 예상되는 코드를 영역으로 묶은뒤 거기서 일어나는 에러를 처리할 수 있는 catch영역 코드를 작성하기
+
 
 - (중요) 웹페이지 -> 웹서버로 데이터를 전송하는 방식
   1. URL의 일부로 데이터를 포함해서 보냄..
@@ -250,7 +330,8 @@
                                 let result = await axios.get('도메인');
                                 await (result) => { 성공시 실행할코드 };
                               });
-  
+
+
 - rendering의 종류
    1. server-side rendering (SSG)
        : 서버측에서 HTTP API요청을 받으면, 그 요청에 맞는 HTML을 구성해서 CLIENT에게 보내주고, CLIENT측 브라우저는 이를 화면에 랜더링해주기만 하는 방식
@@ -331,95 +412,142 @@
        1. express().listen(포트, () => console.log('접속 성공 메시지') )
            : 해당 포트번호를 통해 통신하는 웹서버를 띄운 뒤, 성공하면 성공메시지를 터미널에 보내라는 명령어  
 
-       2. HTTP 메서드 seris
-           : 웹페이지에서 웹서버로 API를 호출할 때, 사용하는 메서드 
+       2. express().HTTP메서드('url', (생략 가능) 미들웨어 함수명 or 무명 미들웨어 함수, (요청parameter, 응답parameter) => { 내용 } ) seris
+           : 클라이언트에서 웹서버로 API를 호출할 때, 사용하는 메서드 
        
-           1) express().http메서드명('url', (요청parameter, 응답parameter) => { 내용 } )
-               : express 기반으로 만들어진 서버 객체에 HTTP GET 메서드로 해당 URL을 요청하면, 그에 해당하는 내용을 응답하도록 API를 구성하는 메서드
-    
-                 @ URL 파라미터 문법('URL/:parameter명')을 사용한 URL 설계
-                    : ':parameter명'을 url에 붙임으로서, url값이 입력시 해당 :parameter명 영역의 값을 웹페이지 API 스코프 내부에서 '요청.params'를 통해 JS객체 형식으로 한 큐에 볼 수 있음
-
-                       ex) [웹페이지에서 API를 호출시 정해진 부분에 URL 파라미터 기입]
+             1) express().http메서드명('url', (요청parameter, 응답parameter) => { API내용 } )
+                 : express 기반으로 만들어진 서버 객체에 HTTP 메서드로 해당 URL을 요청하면, 그에 해당하는 내용을 응답하도록 API를 구성하는 메서드
+      
+                   @ URL 파라미터 문법('URL/:parameter명')을 사용한 URL 설계
+                      : ':parameter명'을 url에 붙임으로서, url값이 입력시 해당 :parameter명 영역의 값을 웹페이지 API 스코프 내부에서 '요청.params'를 통해 JS객체 형식으로 한 큐에 볼 수 있음
+  
+                         ex) [웹페이지에서 API를 호출시 정해진 부분에 URL 파라미터 기입]
+                                  
+                              document.querySelectorAll('.list')[<%= i %>].addEventListener('click', function(e){
+                                 fetch('/detail/ + e.target.dataset.id, { method : 'GET' })
+                              });
+                            
+                             [server.js에서는 url 파라미터를 ':ID명'으로 기입 후, 보낸 내용들을 '요청.params'를 통해 읽을수 있음]
+                         
+                              app.get('/detail/:id', async (요청, 응답) => {
+                                 let result = await db.collection('post').findOne({_id : new ObjectId(요청.params.id)});   <-  요청.params 구성은 [ {para1 : para1값} , {para2 : para2값} ] 이고, 요청.query.id 이런식으로 접근 가능
+                                 응답.render('detail.ejs', { 상세글 : result })
+                              });
+  
+                   @ queryString 문법('URL?데이터이름=데이터값&데이터이름2=데이터값2')을 사용한 URL 설계
+                      : 웹페이지에서 fetch API나 a태그의 url에 ? 이후 데이터이름=데이터값을 페어로 &을 기점으로 하나하나 url에 기입하여 입력시..
+                         -> 서버 API 스코프는 url에 아무런 대처를 하지 않아도, 내부에서 '요청.query '를 통해 JS객체 형식으로 한 큐에 볼 수 있음
+                      
+                            ex) [웹페이지 event설정을 통한 fetch API에 쿼리스트링 기입]
+                                  
+                                 document.querySelectorAll('.list')[<%= i %>].addEventListener('click', function(e){
+                                    fetch('/detail?id=' + e.target.dataset.id, { method : 'GET' })
+                                 });
+                            
+                                [server.js에서는 아무런 url 파라미터 같은걸 안 써줘도 보낸 내용들을 '요청.query'를 통해 읽을수 있음]
                                 
-                            document.querySelectorAll('.list')[<%= i %>].addEventListener('click', function(e){
-                               fetch('/detail/ + e.target.dataset.id, { method : 'GET' })
-                            });
+                                 app.post('/detail', async (요청, 응답)=>{
+                                    await db.collection('post').deleteOne( { _id : new ObjectId(요청.query.id) } );    <-  요청.query의 구성은 [ {id : id값} , {name : name값} ] 이고, 요청.query.id 이런식으로 접근 가능
+                                    응답.render('detail.ejs', { 상세글 : result })
+                                 });
+  
+                   @ 콜백함수의 내용을 통한 응답내용 메서드
+                      a. 응답parameter.send('보내고 싶은 내용')
+                          : 해당 express HTTP 메서드의 요청에 대해 화면에 메시지를 보내고 싶은 경우 사용하는 메서드
+      
+                      b. 응답parameter.sendFile('보내고 싶은 파일경로명')
+                          : 해당 express HTTP 메서드의 요청에 대해 파일을 보내고 싶은 경우 사용하는 메서드
+                             (= 주로 HTML 파일을 보냄으로서, 화면을 전환할 때 사용함)
+      
+                      c. (템플릿 엔진 페이지로 전환) 응답parameter.render('EJS파일명.ejs', { ejs파일에서의 DB데이터 변수명 : API내 DB데이터 변수명 , ...  });
+                          : 해당 express HTTP 메서드의 요청에 대해 지정한 템플릿 엔진과 받은 DB변수를 사용하여 템플릿 파일을 SSR 렌더링해서 사용자에게 보내라는 명령어
+                             (= 템플릿 파일을 렌더링하여 사용자에게 동적으로 웹페이지로 보냄으로서, 화면을 전환할 때 사용함)
+      
+                      d. 응답parameter.redirect('url명')
+                          : 해당 express HTTP 메서드의 요청 프로세스를 다른 API가 처리하도록 떠넘기게 처리 
+                            (= 주로 강제로 페이지 이동시키는 사용)
+      
+                      e. 응답.status(HTTP status 숫자)
+                          : 해당 express HTTP 메서드의 요청 프로세스에 응답시 현재 status를 클라이언트에 전달할 때 사용
+                             -> 여기에 체인메서드를 통해 .send()메서드로 메시지 보낼수도 있음
+      
+
+             2) express().http메서드명('url', 미들웨어 함수명 or 무명 미들웨어 함수, (요청parameter, 응답parameter) => { API내용 } )
+                 : express 기반으로 만들어진 서버 객체에 HTTP 메서드로 해당 URL을 요청하면? 미들웨어 내용을 실행하고 본 API를 실행하도록 구성하는 메서드
+                   (= 함수명 or 무명함수는 자동으로 API 요청받고 응답코드 실행하기 전 사이시간에 실행됨)
+
+                   @ express().http메서드명()을 사용한 미들웨어 설정시 주의사항
+       
+                      a. (중요!) 미들웨어 자리에 위치한 함수의 parameter는 위치에 따라 자동으로 용도가 결정됨
+                      
+                        - 1번째 paramter
+                           : API 요청 관련 정보 객체
+                             (요청.body, 요청.query, 요청.user 다 사용가능)
+                             
+                        - 2번째 paramter
+                           : API 응답 관련 정보 객체 
+                             (= 응답.redirect, 응답.send, 응답.render 다 사용 가능)
+                                -> BUT! 응답객체를 미드웨어 안에서 작성하고, 이걸 호출하게 된다면, 본 API코드까지 넘어가지 않음
+                                   (= 미드웨어의 응답객체 코드 = 함수 {} 안에서의 return 코드)
+                               
+                        - 3번째 paramter
+                          : 콜백으로 쓸 미들웨어가 끝났음을 알리고 본 API의 응답코드로 넘어가게 해주는 next() 함수
+    
+                             ex) function 함수(요청, 응답){             <- 1개의 parameter만 들어갔으니, 1번째 parameter는 API 요청 관련 정보 객체를 가진다
+                                 if(요청.user){ 
+                                   로그인했군~ 
+                                 } else {
+                                   응답.send('로그인안했는데요?')        <- 작동되는 순간 본 API코드는 실행X (= API {} 탈출), 그래서 조건문으로 분기 작성
+                                 }
+                               }
                           
-                           [server.js에서는 url 파라미터를 ':ID명'으로 기입 후, 보낸 내용들을 '요청.params'를 통해 읽을수 있음]
+                               express().http메서드명.get('/어쩌구', 함수, (요청, 응답)=>{ API내용 });
                        
-                            app.get('/detail/:id', async (요청, 응답) => {
-                               let result = await db.collection('post').findOne({_id : new ObjectId(요청.params.id)});   <-  요청.params 구성은 [ {para1 : para1값} , {para2 : para2값} ] 이고, 요청.query.id 이런식으로 접근 가능
-                               응답.render('detail.ejs', { 상세글 : result })
-                            });
-
-                 @ queryString 문법('URL?데이터이름=데이터값&데이터이름2=데이터값2')을 사용한 URL 설계
-                    : 웹페이지에서 fetch API나 a태그의 url에 ? 이후 데이터이름=데이터값을 페어로 &을 기점으로 하나하나 url에 기입하여 입력시..
-                       -> 서버 API 스코프는 url에 아무런 대처를 하지 않아도, 내부에서 '요청.query '를 통해 JS객체 형식으로 한 큐에 볼 수 있음
-                    
-                          ex) [웹페이지 event설정을 통한 fetch API에 쿼리스트링 기입]
-                                
-                               document.querySelectorAll('.list')[<%= i %>].addEventListener('click', function(e){
-                                  fetch('/detail?id=' + e.target.dataset.id, { method : 'GET' })
-                               });
-                          
-                              [server.js에서는 아무런 url 파라미터 같은걸 안 써줘도 보낸 내용들을 '요청.query'를 통해 읽을수 있음]
-                              
-                               app.post('/detail', async (요청, 응답)=>{
-                                  await db.collection('post').deleteOne( { _id : new ObjectId(요청.query.id) } );    <-  요청.query의 구성은 [ {id : id값} , {name : name값} ] 이고, 요청.query.id 이런식으로 접근 가능
-                                  응답.render('detail.ejs', { 상세글 : result })
-                               });
+                             ex) express().http메서드명('/어쩌구', (요청, 응답, next() ) => { 미들웨어 내용 } , (요청, 응답)=>{ API내용 });
+       
+          
+                      b. 미들웨어를 여러개 사용하고 싶으면, [함수1, 함수2, 함수3] 이렇게 array 형태로 넣는거도 가능함
+         
+                          ex) express().http메서드명('/어쩌구', [함수1, 함수2, 함수3] , (요청, 응답)=>{ API내용 });
 
 
-                 @ 콜백함수의 내용을 통한 응답내용 메서드
-                    a. 응답parameter.send('보내고 싶은 내용')
-                        : 해당 express HTTP 메서드의 요청에 대해 화면에 메시지를 보내고 싶은 경우 사용하는 메서드
-    
-                    b. 응답parameter.sendFile('보내고 싶은 파일경로명')
-                        : 해당 express HTTP 메서드의 요청에 대해 파일을 보내고 싶은 경우 사용하는 메서드
-                           (= 주로 HTML 파일을 보냄으로서, 화면을 전환할 때 사용함)
-    
-                    c. (템플릿 엔진 페이지로 전환) 응답parameter.render('EJS파일명.ejs', { ejs파일에서의 DB데이터 변수명 : API내 DB데이터 변수명 , ...  });
-                        : 해당 express HTTP 메서드의 요청에 대해 지정한 템플릿 엔진과 받은 DB변수를 사용하여 템플릿 파일을 SSR 렌더링해서 사용자에게 보내라는 명령어
-                           (= 템플릿 파일을 렌더링하여 사용자에게 동적으로 웹페이지로 보냄으로서, 화면을 전환할 때 사용함)
-    
-                    d. 응답parameter.redirect('url명')
-                        : 해당 express HTTP 메서드의 요청 프로세스를 다른 API가 처리하도록 떠넘기게 처리 
-                          (= 주로 강제로 페이지 이동시키는 사용)
-    
-                    e. 응답.status(HTTP status 숫자)
-                        : 해당 express HTTP 메서드의 요청 프로세스에 응답시 현재 status를 클라이언트에 전달할 때 사용
-                           -> 여기에 체인메서드를 통해 .send()메서드로 메시지 보낼수도 있음
+             3) express().http메서드명('*', (요청parameter, 응답parameter) => { API내용 } )
+                 : express 기반으로 만들어진 서버 객체에 HTTP 메서드로 현재 입력된 URL 이외의 내용을 요청하면, 그에 해당하는 내용을 응답하도록 API를 구성하는 promise객체 기반 메서드
     
     
-           2) express().http메서드명('*', (요청parameter, 응답parameter) => { 내용 } )
-               : express 기반으로 만들어진 서버 객체에 HTTP GET 메서드로 현재 입력된 URL 이외의 내용을 요청하면, 그에 해당하는 내용을 응답하도록 API를 구성하는 promise객체 기반 메서드
-    
-    
-       3. express().use() seris
+       3. express().use((생략가능) URL명, 미드웨어 함수명 or 무명 미드웨어함수) seris
+           : 특정 함수내용을 미들웨어로서 그 밑에 위치한 모든 express().http메서드명()을 사용한 API에서 작동하게 하고 싶을 경우 사용
+              -> 해당 코드 하단의 모든 express().http메서드명()을 사용한 API들은 use()안의 미드웨어 함수 내용을 미드웨어로서 실행함
+                 (= (중요!) 위치에 따라 적용범위가 달라진다 ...이 말씀)
 
-           1) express().use(express.static(__dirname, '목표 static 폴더 경로(보통은 /public )'));  
-               : express.static는 특정 폴더안의 파일들을 static 파일로 지정할 수 있으며, use()메서드를 통해 express 객체가 해당 폴더의 내용을 쓸 수 있도록 등록하는 메서드
-    
-           [하단의 2개의 코드는 express 환경에서 사용하는 미들웨어로 이를 통해 API에서 요청시 들어온 데이터를 '요청parameter.body' 한 방으로 바로 JS객체로 파싱된 형식으로 볼 수 있음 ]
-    
-           2) express().use(express.json())
-               : express 라이브러리 환경에서 JSON 형태로 들어온 요청(request)의 body 영역을 파싱(parse)하기 위해 사용되는 미들웨어(middleware)
-                  -> 이를 사용하지 않을 경우, 템플릿 엔진으로부터 API요청이 들어온 JSON 데이터의 body영역이 인간이 알기 어려운 용어로 전달되거나 예기치 못한 에러가 발생할 수 있음
-    
-           3) express().use(express.urlencoded())
-               : express 라이브러리 환경에서 form태그나 멀티파트 등 JSON 형태가 아닌 URL에 데이터가 포함되어 들어오는 형태로 들어온 요청(request)의 body 영역을 파싱(parse)하기 위해 사용되는 URL 인코딩 관련 미들웨어(middleware)
-                  -> 이를 사용하지 않을 경우, 템플릿 엔진으로부터 API요청이 들어온 JSON 이외 데이터의 body영역과 URL에서 얻은 데이터가 인간이 알기 어려운 용어로 전달되거나 예기치 못한 에러가 발생할 수 있음
-     
-                 # {extended:boolean}
-                    : urlencoded 미들웨어에서 전달된 url queryString을 보안 이슈가 있는 중첩 객체를 통해 파싱할건지를 결정하는 설정값
-                       -> 'url?데이터명&데이트값' 이런 식으로 사용하는 그 queryString 맞으니 당연히 보안문제가 생긴다는 의미로.. 그래서 보안성 관련 확장을 허용할지 묻는거
-                           (= 결과적으로 true, false에 따라 파싱에 사용하는 query String 라이브러리가 달라짐)
+              -> use() 함수의 1번째 paramter에 'url명'을 적으면, 해당 url명으로 시작되는 API만 골라서 미들웨어를 적용해줌 
 
-                              -> true (기본)  : 객체 형태로 전달된 데이터 내에서 또 다른 중첩된 객체를 허용함 (= body-parser 모듈을 사용가능하게 하는 초석 )
-                                                 -> url 쿼리 스트링을 파싱하는데, 따로 설치가 필요하지만 추가적인 보안 확장이 가능한 npm qs 라이브러리 사용함
-                                 false        : 객체 형태로 전달된 데이터 내에서 또 다른 중첩된 객체를 허용 X
-                                                 -> url 쿼리 스트링을 파싱하는데, node.js에 기본으로 내장된 queryString 라이브러리 사용함
+                 ex) express().use('/어쩌구', checkLogin)   
+                      -> 해당 코드 하단의 express().http메서드명() 중 URL이 '/어쩌구'로 시작되는 API들은 미들웨어로 checkLogin을 사용...
+
+
+             1) express().use(express.static(__dirname, '목표 static 폴더 경로(보통은 /public )'));  
+                 : express.static는 특정 폴더안의 파일들을 static 파일로 지정할 수 있으며, use()메서드를 통해 express 객체가 해당 폴더의 내용을 쓸 수 있도록 등록하는 메서드
+      
+             [하단의 2개의 코드는 express 환경에서 사용하는 미들웨어로 이를 통해 API에서 요청시 들어온 데이터를 '요청parameter.body' 한 방으로 바로 JS객체로 파싱된 형식으로 볼 수 있음 ]
+      
+             2) express().use(express.json())
+                 : express 라이브러리 환경에서 JSON 형태로 들어온 요청(request)의 body 영역을 파싱(parse)하기 위해 사용되는 미들웨어(middleware)
+                    -> 이를 사용하지 않을 경우, 템플릿 엔진으로부터 API요청이 들어온 JSON 데이터의 body영역이 인간이 알기 어려운 용어로 전달되거나 예기치 못한 에러가 발생할 수 있음
+      
+             3) express().use(express.urlencoded())
+                 : express 라이브러리 환경에서 form태그나 멀티파트 등 JSON 형태가 아닌 URL에 데이터가 포함되어 들어오는 형태로 들어온 요청(request)의 body 영역을 파싱(parse)하기 위해 사용되는 URL 인코딩 관련 미들웨어(middleware)
+                    -> 이를 사용하지 않을 경우, 템플릿 엔진으로부터 API요청이 들어온 JSON 이외 데이터의 body영역과 URL에서 얻은 데이터가 인간이 알기 어려운 용어로 전달되거나 예기치 못한 에러가 발생할 수 있음
+       
+                   # {extended:boolean}
+                      : urlencoded 미들웨어에서 전달된 url queryString을 보안 이슈가 있는 중첩 객체를 통해 파싱할건지를 결정하는 설정값
+                         -> 'url?데이터명&데이트값' 이런 식으로 사용하는 그 queryString 맞으니 당연히 보안문제가 생긴다는 의미로.. 그래서 보안성 관련 확장을 허용할지 묻는거
+                             (= 결과적으로 true, false에 따라 파싱에 사용하는 query String 라이브러리가 달라짐)
+  
+                                -> true (기본)  : 객체 형태로 전달된 데이터 내에서 또 다른 중첩된 객체를 허용함 (= body-parser 모듈을 사용가능하게 하는 초석 )
+                                                   -> url 쿼리 스트링을 파싱하는데, 따로 설치가 필요하지만 추가적인 보안 확장이 가능한 npm qs 라이브러리 사용함
+                                   false        : 객체 형태로 전달된 데이터 내에서 또 다른 중첩된 객체를 허용 X
+                                                   -> url 쿼리 스트링을 파싱하는데, node.js에 기본으로 내장된 queryString 라이브러리 사용함
 
        4. express().set() seris
 
@@ -528,31 +656,34 @@
             - 선언법
               passport.use(new Strategy상속객체 (무명 콜백함수 (아이디, 비번, 콜백함수) => { 유저 입력정보 검증 코드 })
                : passport 라이브러리에서 유저가 로그인 시도시 제출한 아이디 비번이 각 Strategy 방식이 추구하는 방식과 맞는지를 검증하는 부분을 담당하는 함수 선언
+                  -> BUT! 사용시에는 본 API전에 작동하는 미들웨어 함수로서 호출이 되어야 함..
+                     (= 호출법을 참고해라)
 
-                 ex) passport.use(new LocalStrategy(async (아이디, 비번, 콜백함수) => {
-                     
-                         let result = await db.collection('user').findOne({ username : 아이디})
-                     
-                         if (!result) {
-                             return 콜백함수(null, false, { message: '아이디 DB에 없음' })
-                         }
-                     
-                         if (result.password == 비번) {          <- await bcrypt.compare(비번, result.password) : hashing 처리된 비밀번호와 대초해야 한다면, bcrypt라이브러리의 compare 함수를 사용가능  
-                             return 콜백함수(null, result)
-                         } else {
-                             return 콜백함수(null, false, { message: '비번불일치' });
-                         }
-                     }))
+                      ex) passport.use(new LocalStrategy(async (아이디, 비번, 콜백함수) => {
+                          
+                              let result = await db.collection('user').findOne({ username : 아이디})
+                          
+                              if (!result) {
+                                  return 콜백함수(null, false, { message: '아이디 DB에 없음' })
+                              }
+                          
+                              if (result.password == 비번) {          <- await bcrypt.compare(비번, result.password) : hashing 처리된 비밀번호와 대초해야 한다면, bcrypt라이브러리의 compare 함수를 사용가능  
+                                  return 콜백함수(null, result)
+                              } else {
+                                  return 콜백함수(null, false, { message: '비번불일치' });
+                              }
+                          }))
                 
                 [로직 흐름]
                   1. Strategy상속객체의 생성자 함수의 parameter인 id, password, 콜백함수를 paramter로 가지는 무명함수는 id, password의 검증결과에 따라 다른 내용을 실행하는 '콜백함수'를 실행되도록 설계
                   2. 그렇게 실행된 무명함수의 콜백함수를 통해 Strategy상속객체 내부의 멤버변수들이 입력되고, passport.use() 함수가 실행되고 로그인 검증 로직이 실행됨
-                      -> (참고!) 추후 웹서버의 API 안에서 passport.authenticate('local', 콜백함수)라는 코드를 통해, 해당 검증 함수를 호출이 가능함.. (단.. '콜백함수'의 parameter를 제대로 넣지 않으면 로직은 작동 X)
+                      -> 추후 웹서버의 API 안에서 passport.authenticate('local', 콜백함수)라는 코드를 통해, 해당 검증 함수를 호출이 가능함.. 
+                         (단.. '콜백함수'의 parameter를 제대로 넣지 않으면 로직은 작동 X며, 이를 미드웨어 함수로 실행시켜야 한다는 조건이 따르기에 next()를 콜백함수로 넣어야 함)
                          
             - 호출법
               passport.authenticate('local', 무명 콜백함수(error, user, info) => { 검증결과에 따른 내용 } )(요청, 응답, next)
-               : 앞서 선언한 로그인 정보 검증 함수 선언부인 passport.use( new Strategy상속객체( 무명콜백함수(id, password, 콜백함수) )를 호출하여 '콜백함수'를 반환받고, 거기에 콜백함수(요청, 응답, next)를 paramter를 기입해서 호출하는 코드
-                  -> (주의!) IIFE(즉시호출 함수) 패턴 구조가 사용된 코드
+               : 앞서 선언한 로그인 정보 검증 함수 선언부인 passport.use( new Strategy상속객체( 무명콜백함수(id, password, 콜백함수) )를 호출하여 '콜백함수'인 passport.use를 반환받고, 거기에 콜백함수(요청, 응답, next)로 paramter를 기입해서 미드웨어 함수로서 '콜백함수'인 passport.use를 호출하는 코드
+                  -> (주의!) IIFE(즉시호출 함수) 패턴 구조가 사용된 코드이며, 최종적으로 미들웨어 함수로서 본 API 내용 전에 실행이 되어야함
                   -> (중요!) 무명 콜백함수 내용에는 주로 실패에 대한 경우 메시지를 보내거나, 로그인 성공시 어떻게 할지를 적음
 
                      ex) app.post('/login', async (요청, 응답, next) => {
@@ -568,7 +699,7 @@
                                  요청.logIn(user, (err) => {
                          
                                      if (err) {
-                                         return next(err)
+                                         return next(err)        <-  passport.authenticate()가 미들웨어 함수로서 실행된다는 사실과 의도를 보여주고, 이를 통해 본 API 내용이 실행되게 넘겨줌
                                      } else {
                                          응답.redirect('/list/paging/ver1/1')
                                      }
@@ -589,8 +720,8 @@
             
                   2) 1번의 결과인 무명 콜백함수2의 parameter인 '콜백함수'의 parameter는 2~3개..
                      (= 이는 라이브러리 검증 함수 use를 호출한 API쪽에서 자신의 parameter인 (요청, 응답, next)라는 parameter를 제공하여야 실행이 가능함)
-                         -> (중요!) 이를 통해 Passport의 인증 메서드는 요청(request), 응답(response) 관련 내용과, 다음 미들웨어(next)에 접근할 수 있고 실행이 완료됨
-                            (= passport.authenticate('local', 무명 콜백함수1(error, user, info))(요청, 응답, next)라는 즉시실행코드(iife) 패턴으로 호출이 되어야 에러가 없는 이유)
+                         -> (중요!) 이를 통해 Passport의 인증 메서드는 요청(request), 응답(response) 관련 내용과, next() 함수를 통해 미들웨어 이후의 본 API코드에 접근할 수 있고 실행이 완료됨
+                            (= passport.authenticate('local', 무명 콜백함수1(error, user, info))(요청, 응답, next)라는 최종적으로는 즉시실행코드(iife) 패턴 형식으로 작동하는 미들웨어 함수기에 (요청, 응답, next) parameter가 꼭 있어야 에러가 없음)
 
           @ session 생성 및 세션id 브라우저 쿠키에 저장 담당 코드
           
@@ -665,3 +796,46 @@
           2) bcrypt.compare('문자열', 'hashing 적용된 문자열')
               : 어떤 문자열이 hashing 처리된 어떤 문자열과 같은지 비교하는 함수  
                  -> 문자열 비교기능의 일종의 업그레이드 버전
+
+
+- dotenv 라이브러리
+   : 개발 환경을 구축시, 개발자나 컴퓨터에 따라 다르게 입력되어야 할 환경변수들을 1개의 환경설정 파일에 모아두고, 전역변수로서 접근가능하게 해주는 ';.env 확장자 설정파일' 구축을 돕는 Node.js 기반 라이브러리
+
+     ex) mongoUrl : ''mongodb+srv://admin:lsh916@cluster0.tatoixz.mongodb.~~'
+          -> 개발자 마다 다른 DB주소를 가지고 있어 달라질 수 있음
+
+    # 환경변수
+       : 개발 환경을 구축하는데 있어 반드시 입력이 필요하지만, 개발자와 컴퓨터에 따라 달라질 수 있어서 구체적으로 입력이 필요한 가변적인 변수
+          -> (중요!) 개발 초기에는 하드코딩을 하기도 하지만...  따로 별도의 설정파일용 '.env 확장자'를 가진 파일에 보관하는게 나음
+               1) 환경변수 관리가 쉬움
+                   : 변동이 생길 가능성이 있는 환경변수만 따로 모아두면, 파일과 내용의 관리가 쉬우며, 소스공유 작업도 편리해짐
+               2) 보안을 관리하기 용이함
+                   : 환경변수용 설정파일 1개만 특별관리를 한다면, 공유시에 환경변수를 따로 관리하기도 쉬움
+                     (= ignore 확장자에 등록해두면, 이게 올라갈 일은 없다.. 이 말씀)
+
+    # dotenv 라이브러리 사용법
+      1. 터미널에 npm install dotenv 입력 
+      2. server.js 파일에 아래 코드 작성하여, 라이브러리 사용을 위한 모듈 import 코드 작성
+
+         ex) require('dotenv').config();
+         
+      3. 소스 폴더 최상단에 .env 파일 생성 후 환경변수로 넣을 변수들 하나하나 작성
+
+         ex) mongoDB에 작성할 환경변수 내용들을 상수명으로 지어진 변수명에 기입
+
+             PORT = 8080
+             DB_URL = "mongodb+srv://codingapple1@저쩌구" 
+
+      4. 환경변수를 입력할 자리에 입력했던 변수명에 해당하는 변수를 입력하고 싶으면 'process.env.환경변수명'과 같은 형식으로 입력해주기
+
+         ex) app.use(session({
+                secret: process.env.SECRET,
+                resave : false, 
+                saveUninitialized : false,
+                cookie : process.env.COOKIE,
+                store: MongoStore.create({
+                    mongoUrl : process.env.MONGO_URL,
+                    dbName: 'forum',
+                })
+            }))
+ 

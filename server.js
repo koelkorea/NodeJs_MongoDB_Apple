@@ -1,3 +1,6 @@
+// 환경변수들을 상수화된 변수명에 보관하여 전역변수로서 접근가능하게 도와주는 .env 파일을 쉽게 구축하게 돕는 dotenv 라이브러리를 모듈 import에 해당하는 내용
+require('dotenv').config();
+
 // Express 프레임워크
 //  : 웹이나 모바일 환경 기반 애플리케이션을 위한 Node.js 기반 웹 애플리케이션 프레임워크
 
@@ -24,7 +27,7 @@ const { MongoClient, ObjectId } = require('mongodb')
 let db;
 
 // 내 MongoDB 서버에 접속하기 위한 URL 정보
-const url = 'mongodb+srv://admin:lsh916@cluster0.tatoixz.mongodb.net/?retryWrites=true&w=majority'
+const url = process.env.MONGO_DB_URL;
 
 new MongoClient(url).connect().then((client)=>{
 
@@ -35,7 +38,7 @@ new MongoClient(url).connect().then((client)=>{
 
     // express().listen(포트, () => console.log('접속 성공 메시지') )
     //  : 해당 포트번호를 통해 통신하는 웹서버를 띄운 뒤, 성공하면 성공메시지를 터미널에 보내라는 명령어  
-    app.listen(8080, () => {
+    app.listen(process.env.PORT, () => {
         console.log('http://localhost:8080 에서 서버 실행중')
     })
 
@@ -64,22 +67,23 @@ app.use(passport.initialize())
 
 // express-session 라이브러리를 통해 세션을 만드는 과정.. session() 안의 parameter로 넣을 js객체를 통해, session의 속성 지정 가능
 app.use(session({
-    secret: '암호화에 쓸 비번',
+    secret: process.env.SECRET_WORD,
     resave : false, 
     saveUninitialized : false,
     cookie : { maxAge : 60 * 60 * 1000 },
     // store : 세션 저장할 DB를 연결할 정보를 속성값으로 가지는 멤버변수.. connect-mongo 라이브러리를 통해 mongoDB에 연결
     store: MongoStore.create({
-        mongoUrl : 'mongodb+srv://admin:lsh916@cluster0.tatoixz.mongodb.net/?retryWrites=true&w=majority',
+        mongoUrl : url,
         dbName: 'forum',
     })
 }))
 
 // passport.use(new Strategy(무명 콜백함수 (id, password, 콜백함수) => { 유저 입력정보 검증 코드 }))
-//   : 유저가 제출한 아이디 비번이 DB랑 맞는지 검증하는 방식의 Local Strategy에 해당하는 로직 코드를 passport 라이브러리에서 사용하기 위한 보일러플레이트 코드
-//     (new LocalStrategy 어쩌구는 아이디/비번이 DB와 일치하는지 검증하는 로직을 담당하는 무명함수를 parameter로 받아 그 결과에 따른 JS객체)
+//   : 유저가 제출한 아이디 비번이 DB랑 맞는지 검증하는 방식의 Strategy에 해당하는 passport 라이브러리의 로직 코드를 사용하기 위한 보일러플레이트 코드
+//     (new Strategy 어쩌구는 아이디/비번이 DB와 일치하는지 검증하는 로직을 담당하는 무명함수를 parameter로 받아 그 결과에 따른 JS객체)
 //       -> 추후 웹서버의 API 안에서 passport.authenticate('local', 무명 콜백함수(error, user, info) => { 검증결과에 따른 내용 })를 통해 해당 코드의 호출이 가능함
-//           -> 단! passport.use()의 return값은 그것의 paramter인 '콜백함수'로 이를 호출해야  Passport의 인증 메서드 실행이 가능하여, 추가적인 paramter 3개를 입력해야하기에  (요청, 응답, next)라는 paramter를 기입해 즉시실행코드(iife)로 실행
+//           -> 단! passport.use()의 return값은 그것의 paramter인 '콜백함수'로 이를 호출해야  Passport의 인증 메서드 실행이 가능하여, 추가적인 paramter 3개를 입력해야하는데..
+//               -> (중요!) 이를 또 본 API코드 실행전에 미들웨어 함수로 실행해야 하므로... (요청, 응답, next)라는 paramter를 기입해 Passport의 인증 메서드를 즉시실행코드(iife) 형식으로 실행
 
 //  # (중요) 관련 확장 개념 정리
 //     1) passport.authenticate('local', 무명 콜백함수1(error, user, info) ) = passport.use(new Strategy( 무명 콜백함수2(id, password, 콜백함수) ) 을 호출
@@ -92,7 +96,11 @@ app.use(session({
 //      2) 1번의 결과인 무명 콜백함수2의 parameter인 '콜백함수'의 parameter는 2~3개..
 //         (= 이는 라이브러리 검증 함수 use를 호출한 API쪽에서 자신의 parameter인 (요청, 응답, next)라는 parameter를 제공하여야 실행이 가능함)
 //             -> (중요!) 이를 통해 Passport의 인증 메서드는 요청(request), 응답(response) 관련 내용과, 다음 미들웨어(next)에 접근할 수 있고 실행이 완료됨
-//                (= passport.authenticate('local', 무명 콜백함수1(error, user, info))(요청, 응답, next)라는 즉시실행코드(iife) 패턴으로 호출이 되어야 에러가 없는 이유)
+//                (= passport.authenticate('local', 무명 콜백함수1(error, user, info))(요청, 응답, next)라는 최종적으로는 즉시실행코드(iife) 패턴 형식으로 작동하는 미들웨어 함수기에 (요청, 응답, next) parameter가 꼭 있어야 에러가 없음)
+
+//      3)  미들웨어(middleware)
+//           : 웹서버의 API가 클라이언트의 요청으로 호출될 시, 응답되기 전에 실행되는 함수를 큰 틀에서 통칭하여 의미
+//              ex) API를 실행하기 전에, 현재 요청한 유저가 login을 한 상태인지 API를 응답하기 전에 실행하는 코드 및 함수 내용
 passport.use(new LocalStrategy(async (입력한아이디, 입력한비번, 콜백함수) => {
 
     let result = await db.collection('user').findOne({ username : 입력한아이디});
@@ -476,7 +484,7 @@ app.get('/login', (요청, 응답)=>{
 app.post('/login', async (요청, 응답, next) => {
 
     // passport.authenticate('local', 무명 콜백함수(error, user, info) => { 검증결과에 따른 내용 } )(요청, 응답, next)
-    //  : 앞서 선언한 로그인 정보 검증 함수 선언부인 passport.use( new Strategy상속객체( 무명콜백함수(id, password, 콜백함수) )를 호출하여, '콜백함수'를 반환받고 거기에 콜백함수(요청, 응답, next)를 paramter를 기입해서 호출
+    //  : 앞서 선언한 로그인 정보 검증 함수 선언부인 passport.use( new Strategy상속객체( 무명콜백함수(id, password, 콜백함수) )를 호출하여 '콜백함수'를 반환받고, 거기에 콜백함수(요청, 응답, next)로 paramter를 기입해서 미드웨어 함수로서 '콜백함수'를 호출하는 코드
     //     -> (주의!) IIFE(즉시호출 함수) 패턴 구조가 사용된 코드
 
     //  # (중요) 로직흐름 정리
@@ -490,7 +498,7 @@ app.post('/login', async (요청, 응답, next) => {
     //      2) 1번의 결과인 무명 콜백함수2의 parameter인 '콜백함수'의 parameter는 2~3개..
     //         (= 이는 라이브러리 검증 함수 use를 호출한 API쪽에서 자신의 parameter인 (요청, 응답, next)라는 parameter를 제공하여야 실행이 가능함)
     //             -> (중요!) 이를 통해 Passport의 인증 메서드는 요청(request), 응답(response) 관련 내용과, 다음 미들웨어(next)에 접근할 수 있고 실행이 완료됨
-    //                (= passport.authenticate('local', 무명 콜백함수1(error, user, info))(요청, 응답, next)라는 즉시실행코드(iife) 패턴으로 호출이 되어야 에러가 없는 이유)
+    //                (= passport.authenticate('local', 무명 콜백함수1(error, user, info))(요청, 응답, next)라는 최종적으로는 즉시실행코드(iife) 패턴 형식으로 작동하는 미들웨어 함수기에 (요청, 응답, next) parameter가 꼭 있어야 에러가 없음)
     passport.authenticate('local', (error, user, info) => {
 
         if (error) {
@@ -504,6 +512,12 @@ app.post('/login', async (요청, 응답, next) => {
         요청.logIn(user, (err) => {
 
             if (err) {
+                
+                // next()
+                //  : 미들웨어 함수의 3번째 파라미터로 들어가는 콜백함수로서, 미드웨어의 실행이 완료되었으니, 본 API를 실행시키라는 내용을 가지고 있음
+                //    (= 미들웨어의 2번째 파라미터인 API 응답 객체가 실행되면, 이 next() 함수를 실행할 방법이 사라져 버리니.. 본 API코드는 작동하지 않음) 
+
+                // passport.authenticate()가 미들웨어 함수로서 실행된다는 사실과 의도를 보여주고, 이를 통해 본 API 내용이 실행되게 넘겨줌
                 return next(err)
             } else {
                 응답.redirect('/list/paging/ver1/1')
