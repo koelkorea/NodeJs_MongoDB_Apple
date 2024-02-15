@@ -19,12 +19,12 @@
         <div class="white-box">
             <div class="list-box">
                 <!-- 템플릿 기호는 ""안에서도 인식되며, 링크를 만들수 있게 함 -->
-                <a href="/detail/<%= 글목록[i]._id %>">
+                <a href="/board/detail/<%= 글목록[i]._id %>">
                     <h4><%= 글목록[i].title %></h4>
                 </a>
                 <p><%= 글목록[i].content %></p>
                 <!-- 수정화면 이동 버튼 -->
-                <a href="/edit/<%= 글목록[i]._id %>">✏️</a>
+                <a href="/board/edit/<%= 글목록[i]._id %>">✏️</a>
                 <!-- 삭제기능 수행 버튼 -->
                 <span class="delete1">🗑️</span>
                 <span class="delete2" data-id="<%= 글목록[i]._id %>" data-row="<%= i %>">🗑️</span>
@@ -37,15 +37,15 @@
         <div class="white-box">
 
         <% if ( ( (페이지 * 1) != 1 ) || (갯수 == 0) ) { %>
-            <a href="/list/paging/ver1/<%= parseInt(페이지) - 1 %>">이전(db 페이징 처리)</a>
+            <a href="/board/list/paging/ver1/<%= parseInt(페이지) - 1 %>">이전(db 페이징 처리)</a>
         <% } %> 
 
         <% for (var j = 1; j <= Math.trunc(갯수 / 5) + 1; j++){ %>
-            <a href="/list/paging/ver1/<%=j%>"> <%= j %> </a>
+            <a href="/board/list/paging/ver1/<%=j%>"> <%= j %> </a>
         <% } %> 
 
         <% if ( ( (페이지 * 1) != Math.trunc(갯수 / 5) + 1 ) || (갯수 == 0) ) { %>
-            <a href="/list/paging/ver1/<%= parseInt(페이지) + 1 %>">다음(db 페이징 처리)</a>
+            <a href="/board/list/paging/ver1/<%= parseInt(페이지) + 1 %>">다음(db 페이징 처리)</a>
         <% } %> 
 
         </div>
@@ -57,15 +57,15 @@
 
 
         <% if ( (페이지 * 1) != 1 ){ %>
-            <a href="/list/paging/ver2/<%= parseInt(페이지) - 1 %>">이전(웹서버 페이징 처리)</a>
+            <a href="/board/list/paging/ver2/<%= parseInt(페이지) - 1 %>">이전(웹서버 페이징 처리)</a>
         <% } %> 
 
         <% for (var j = 1; j <= Math.trunc(갯수 / 5) + 1; j++){ %>
-            <a href="/list/paging/ver2/<%=j%>"> <%= j %> </a>
+            <a href="/board/list/paging/ver2/<%=j%>"> <%= j %> </a>
         <% } %> 
 
         <% if ( (페이지 * 1) != Math.trunc(갯수 / 5) + 1 ){ %>
-            <a href="/list/paging/ver2/<%= parseInt(페이지) + 1 %>">다음(웹서버 페이징 처리)</a>
+            <a href="/board/list/paging/ver2/<%= parseInt(페이지) + 1 %>">다음(웹서버 페이징 처리)</a>
         <% } %> 
 
         </div>
@@ -82,7 +82,7 @@
             // 삭제기능 구현1) FORM태그 없이 이벤트리스너를 통한 클릭시, 이를 QueryString 방식으로 서버 API호출하여 구현 + then, catch, finally 사용하여 DOM구조 조작까지 해보기
             document.querySelectorAll('.delete1')[<%= i %>].addEventListener('click', function(){
                 if( confirm('1번째 방식으로 삭제할까요?') ){
-                    fetch(`/delete?id=<%= 글목록[i]._id %>`,  { method : 'DELETE' })
+                    fetch(`/board/delete?id=<%= 글목록[i]._id %>`,  { method : 'DELETE' })
                     .then( (응답) => 응답.text() )
                     .then( (응답) => {
                         document.querySelectorAll('.delete1')[<%= i %>].parentElement.style.display = 'none'
@@ -96,7 +96,7 @@
 
                     // (중요!) await가 붙으면, 해당 함수 {}안의 해당 비동기코드가 응답이 돌아올떄까지 이를 기다려줌
                     //  -> 그런 의미에서 fetch를 통한 API 호출은 async await를 사용시 반드시 await를 붙여줘야함.. 그래야 fetch가 끝날떄까지 기다려줌 
-                    let result = await fetch('/delete?id=' + e.target.dataset.id, { method : 'DELETE' });
+                    let result = await fetch('/board/delete?id=' + e.target.dataset.id, { method : 'DELETE' });
                     let response = await result.text();
                     e.target.parentElement.style.display = 'none';
                 }
