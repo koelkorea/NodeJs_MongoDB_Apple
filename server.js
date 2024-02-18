@@ -77,6 +77,9 @@ const session = require('express-session')
 const passport = require('passport')
 const LocalStrategy = require('passport-local')
 
+// bcrypt 라이브러리 관련 모듈
+const bcrypt = require('bcrypt') 
+
 // connect-mongo 라이브러리 관련 모듈
 //  -> 얘를 통해 passport 라이브러리의 session 저장할 DB를 mongoDB로 지정 가능함
 const MongoStore = require('connect-mongo')
@@ -194,6 +197,10 @@ passport.deserializeUser(async (유저정보, 콜백함수) => {
 // passport 라이브러리의 session을 만드는 코드 (express-session를 통해 지정한 세션의 속성 사용)
 app.use(passport.session()) 
 
+//-------------------------------------------------------------------------------------------------------------------------
+// s3 연결 보일러플레이트 모듈화
+require('./s3.js');
+
 //--------------------------------------------- [웹서버 API]-----------------------------------------------------------------
 
 // express().get('url', (요청parameter, 응답parameter) => { 내용 } )
@@ -259,9 +266,9 @@ app.get('/login', (요청, 응답)=>{
 // 과제) 로그인 로직 수행시, id 비번이 비는지 체크하는 로직을 가지는 함수를 미들웨어로 수행하는 express프레임워크의 http메서드 함수를 쓰는 API를 만들어라
 function checkIdPw (요청, 응답, next) {
     if (요청.body.username == '' || 요청.body.password == '') {
-      응답.send('그러지마세요')
+        응답.send('그러지마세요')
     } else {
-      next();
+        next();
     }
 };
 

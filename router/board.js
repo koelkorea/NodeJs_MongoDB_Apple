@@ -6,6 +6,9 @@
 //  : express 라이브러리를 모듈 import에 불러와서, router() 함수를 통해 얻는 router관련 객체를 리턴하는 함수
 const router = require('express').Router();
 
+// s3 연결 보일러플레이트 모듈화
+const upload = require('../s3.js');
+
 //------------------------------------------------------------------------------------------------------------------------------------
 // server.js의 express().use('/shop', require('./router/shop.js') )를 통해, 해당 파일 하단에 존재하는 API들에 연결하고 응답할 수 있도록 함
 //  -> 하단의 API들은 전부 express().http메서드('/shop + /원래url', 무명함수) 형식으로 작성된 API나 다름없음  
@@ -188,8 +191,13 @@ router.get('/write', (요청, 응답)=>{
     응답.render('write.ejs');
 }); 
 
+// upload.single()
+//  : 단, 1개의 이미지만 업로드 하고 하고 싶을 경우 사용
+
 // 입력페이지인 write.ejs 템플릿에서 도메인/add라는 url에 POST 형식으로 보낸 form 데이터를 서버에서 받아 DB에 입력하는 API 구현
+//  -> 한개의 이미지를 S3에 업로드 가능하게 함
 router.post('/add', async (요청, 응답)=>{
+
     // 상단의 보일러 플레이트 코드를 입력했기에, 사용자가 form 요청으로 보낸 input 데이터를 '요청parameter.body' 한 방으로 바로 JSON으로 파싱된 형식으로 볼 수 있음
     console.log(요청.body);
     
@@ -202,13 +210,69 @@ router.post('/add', async (요청, 응답)=>{
 
         // 오류처리 방지용 try, catch 구문
         try{
+            upload.single('img1')(요청, 응답, async (err)=>{
+
+                if (err) return 응답.send('에러남')
+
+                // 요청.file : 업로드 된 원본의 파일명
+                console.log(요청.file)
+
+                // client.db('forum').collection('post').insertOne({title : 요청.body.title, content : 요청.body.content});
+                //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션에 js객체 형식으로 적힌 {}안의 데이터를 기입
+                await db.collection('post').insertOne({
+                    title : 요청.body.title,
+                    content : 요청.body.content,
+                    img : 요청.file.location
+                })
+
+                // 응답parameter명.redirect('/list');
+                //  : 도메인/list url의 API로 강제로 보내기
+                응답.redirect('/list');
+            })
+
+        } catch (e) {
+            console.log(e);
+            응답.status(500).send('DB에러남');
+        }
+    } 
+
+});
+
+// upload.array(‘input의 name속성 이름’, '업로드 이미지 최대갯수')
+//  : 여러개의 이미지를 업로드 하고 싶을 경우 사용
+
+// 입력페이지인 write.ejs 템플릿에서 도메인/add/multiIMG라는 url에 POST 형식으로 보낸 form 데이터를 서버에서 받아 DB에 입력하는 API 구현
+//  -> 최대 10개의 이미지를 저장할 용도의 API
+router.post('/add/multiIMG',  upload.array('img1', 10), async (요청, 응답)=>{
+
+    // 상단의 보일러 플레이트 코드를 입력했기에, 사용자가 form 요청으로 보낸 input 데이터를 '요청parameter.body' 한 방으로 바로 JSON으로 파싱된 형식으로 볼 수 있음
+    console.log(요청.body);
+    
+    // 서버 API를 거치게 될 때, validator 처리를 위한 조건문
+    if (요청.body.title == '') {
+
+        응답.send('제목을 적어주시길..')
+
+    } else {
+
+        // 오류처리 방지용 try, catch 구문
+        try{
+
+            // 요청.file : 업로드 된 원본의 파일명
+            console.log(요청.files)
+
             // client.db('forum').collection('post').insertOne({title : 요청.body.title, content : 요청.body.content});
             //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션에 js객체 형식으로 적힌 {}안의 데이터를 기입
-            await db.collection('post').insertOne({title : 요청.body.title, content : 요청.body.content});
+            await db.collection('post').insertOne({
+                title : 요청.body.title,
+                content : 요청.body.content,
+                img : 요청.files.location         // 나중에 게시글 상세조회시 여기 저장된 이미지 url 정보를 통해 s3에 접근하여 이미지를 가져옴 
+            })
 
             // 응답parameter명.redirect('/list');
             //  : 도메인/list url의 API로 강제로 보내기
             응답.redirect('/list');
+
         } catch (e) {
             console.log(e);
             응답.status(500).send('DB에러남');

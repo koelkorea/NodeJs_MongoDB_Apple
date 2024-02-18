@@ -12,6 +12,9 @@
         <h4>글쓰기</h4>
         <input name="title">
         <input name="content">
+        <!-- 이미지 업로드시, s3에 이미지 저장할 수 있도록 file타입으로 input태그 만들기  -->
+        <!--   -> accept 속성 : 보내는 file의 속성을 어떤 것만 받아들이라는 input 태그 작성시의 권장사항  -->
+        <input type="file" name="img1" accept="image/*">
         <button type="submit">전송</button>
     </form> 
 
