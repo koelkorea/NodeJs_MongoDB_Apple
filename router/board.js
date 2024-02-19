@@ -9,24 +9,10 @@ const router = require('express').Router();
 // s3 연결 보일러플레이트 모듈화
 const upload = require('../s3.js');
 
-//------------------------------------------------------------------------------------------------------------------------------------
-// server.js의 express().use('/shop', require('./router/shop.js') )를 통해, 해당 파일 하단에 존재하는 API들에 연결하고 응답할 수 있도록 함
-//  -> 하단의 API들은 전부 express().http메서드('/shop + /원래url', 무명함수) 형식으로 작성된 API나 다름없음  
-//  -> (주의) router용도의 js 파일에 작성된 API들은 'express().http메서드' ->  'require('express').Router().http메서드'로 작성되어야 함
-//       -> 이렇게 함으로서, url을 단서로 server.js에서 해당 router.js를 찾아내고, 해당 js파일에서 적합한 API를 연결해주기 때문
-
-// require('express').Router().use((생략가능) URL명, 미드웨어 함수명 or 무명 미드웨어함수)
-//  : express().use((생략가능) URL명, 미드웨어 함수명 or 무명 미드웨어함수) 용도와 같지만, 해당 router용도의 js파일에서 해당 코드 밑에 위치한 모든 express().router().http메서드명()을 사용한 API에서 작동하게 하고 싶을 경우 사용
-//     -> 참고사항 정리
-//         1. 여기서도 위치에 따라 적용되는 API범위가 달라진다 
-//         2. URL영역에 적힌 URL은 전부 server.js에서 작성한 express().http메서드('/머리url', 무명함수)에서 '/머리url'이 앞에 붙은 url이라고 생각해야함
-//             ex) 머리url = /head  ,  현재url = /corrent
-//                  -> router().use()의 미들웨어 함수가 적용되는 URL은 해당 코드를 기준으로 하단에 /head/corrent 로 시작하는 녀석으로 보면 됨
-router.use('/', (요청, 응답, next) => {
-    console.log(new Date())
-    next()
-}) 
-
+// MongoDB 모듈 import에 해당하는 내용
+//  - MongoClient : DB접속시 생성된 해당 유저정보를 담는 JS객체에 해당
+//  - ObjectId : 사용자가 DB에서 ID기반 검색시 생성된 JS에서 이 ID정보를 인식하고 DB에 검색 명령 내릴때 전달가능하게 하는 JS객체에 해당
+const { ObjectId } = require('mongodb')
 
 // MongoDB 서버 접속 결과 및 DB제어 함수를 사용하기 위한 변수
 let db;
@@ -44,6 +30,23 @@ require('../database.js').then((client)=>{
     console.log(err)
 })
 
+//------------------------------------------------------------------------------------------------------------------------------------
+// server.js의 express().use('/shop', require('./router/shop.js') )를 통해, 해당 파일 하단에 존재하는 API들에 연결하고 응답할 수 있도록 함
+//  -> 하단의 API들은 전부 express().http메서드('/shop + /원래url', 무명함수) 형식으로 작성된 API나 다름없음  
+//  -> (주의) router용도의 js 파일에 작성된 API들은 'express().http메서드' ->  'require('express').Router().http메서드'로 작성되어야 함
+//       -> 이렇게 함으로서, url을 단서로 server.js에서 해당 router.js를 찾아내고, 해당 js파일에서 적합한 API를 연결해주기 때문
+
+// require('express').Router().use((생략가능) URL명, 미드웨어 함수명 or 무명 미드웨어함수)
+//  : express().use((생략가능) URL명, 미드웨어 함수명 or 무명 미드웨어함수) 용도와 같지만, 해당 router용도의 js파일에서 해당 코드 밑에 위치한 모든 express().router().http메서드명()을 사용한 API에서 작동하게 하고 싶을 경우 사용
+//     -> 참고사항 정리
+//         1. 여기서도 위치에 따라 적용되는 API범위가 달라진다 
+//         2. URL영역에 적힌 URL은 전부 server.js에서 작성한 express().http메서드('/머리url', 무명함수)에서 '/머리url'이 앞에 붙은 url이라고 생각해야함
+//             ex) 머리url = /head  ,  현재url = /corrent
+//                  -> router().use()의 미들웨어 함수가 적용되는 URL은 해당 코드를 기준으로 하단에 /head/corrent 로 시작하는 녀석으로 보면 됨
+router.use('/', (요청, 응답, next) => {
+    console.log(new Date())
+    next()
+}) 
 
 // MongoDB를 통해 받은 데이터를 ejs 템플릿 엔진을 통해 받고 난 뒤 SSR 방식으로 웹페이지 동적 제작
 
@@ -206,6 +209,9 @@ router.post('/add', async (요청, 응답)=>{
 
         응답.send('제목을 적어주시길..')
 
+        // 요청.file : 업로드 된 원본의 파일명
+        console.log(요청.file)
+
     } else {
 
         // 오류처리 방지용 try, catch 구문
@@ -214,8 +220,9 @@ router.post('/add', async (요청, 응답)=>{
 
                 if (err) return 응답.send('에러남')
 
-                // 요청.file : 업로드 된 원본의 파일명
-                console.log(요청.file)
+                if (!요청.file) {
+                    return 응답.status(400).send('파일이 업로드되지 않았습니다.');
+                }
 
                 // client.db('forum').collection('post').insertOne({title : 요청.body.title, content : 요청.body.content});
                 //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션에 js객체 형식으로 적힌 {}안의 데이터를 기입
@@ -225,9 +232,9 @@ router.post('/add', async (요청, 응답)=>{
                     img : 요청.file.location
                 })
 
-                // 응답parameter명.redirect('/list');
-                //  : 도메인/list url의 API로 강제로 보내기
-                응답.redirect('/list');
+                // 응답parameter명.redirect('/list/paging/ver1/1');
+                //  : 도메인 /list/paging/ver1/1 url의 API로 강제로 보내기
+                응답.redirect('/board/list/paging/ver1/1');
             })
 
         } catch (e) {
@@ -238,6 +245,12 @@ router.post('/add', async (요청, 응답)=>{
 
 });
 
+// 도메인/write라는 url에 GET 형식의 요청이 들어오면 입력페이지 보여주는 API
+router.get('/write/multiIMG', (요청, 응답)=>{
+    응답.render('write2.ejs');
+}); 
+
+
 // upload.array(‘input의 name속성 이름’, '업로드 이미지 최대갯수')
 //  : 여러개의 이미지를 업로드 하고 싶을 경우 사용
 
@@ -247,6 +260,10 @@ router.post('/add/multiIMG',  upload.array('img1', 10), async (요청, 응답)=>
 
     // 상단의 보일러 플레이트 코드를 입력했기에, 사용자가 form 요청으로 보낸 input 데이터를 '요청parameter.body' 한 방으로 바로 JSON으로 파싱된 형식으로 볼 수 있음
     console.log(요청.body);
+
+    // 요청.file : 업로드 된 원본의 파일명
+    console.log(요청.file);
+    console.log(요청.files);
     
     // 서버 API를 거치게 될 때, validator 처리를 위한 조건문
     if (요청.body.title == '') {
@@ -258,8 +275,9 @@ router.post('/add/multiIMG',  upload.array('img1', 10), async (요청, 응답)=>
         // 오류처리 방지용 try, catch 구문
         try{
 
-            // 요청.file : 업로드 된 원본의 파일명
-            console.log(요청.files)
+            if (!요청.files) {
+                return 응답.status(400).send('파일이 업로드되지 않았습니다.');
+            }
 
             // client.db('forum').collection('post').insertOne({title : 요청.body.title, content : 요청.body.content});
             //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션에 js객체 형식으로 적힌 {}안의 데이터를 기입
@@ -269,9 +287,9 @@ router.post('/add/multiIMG',  upload.array('img1', 10), async (요청, 응답)=>
                 img : 요청.files.location         // 나중에 게시글 상세조회시 여기 저장된 이미지 url 정보를 통해 s3에 접근하여 이미지를 가져옴 
             })
 
-            // 응답parameter명.redirect('/list');
-            //  : 도메인/list url의 API로 강제로 보내기
-            응답.redirect('/list');
+            // 응답parameter명.redirect('/list/paging/ver1/1');
+            //  : 도메인 /list/paging/ver1/1 url의 API로 강제로 보내기
+            응답.redirect('/board/list/paging/ver1/1');
 
         } catch (e) {
             console.log(e);
@@ -331,7 +349,11 @@ router.post('/revise/:id', async (요청, 응답)=>{
             // client.db('forum').collection('post').updateOne( { _id : 요청.params.id }, { $set: { title : 요청.body.title, content : 요청.body.content } } );
             //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션에 id가 url파라미터의 id와 같은 데이터를 찾은뒤 js객체 형식으로 적힌 {}안의 데이터로 수정
             await db.collection('post').updateOne( { _id : new ObjectId(요청.params.id) }, { $set: { title : 요청.body.title, content : 요청.body.content } } );
-            응답.redirect('/list');
+
+            // 응답parameter명.redirect('/list/paging/ver1/1');
+            //  : 도메인 /list/paging/ver1/1 url의 API로 강제로 보내기
+            응답.redirect('/board/list/paging/ver1/1');
+
         } catch (e) {
             console.log(e);
             응답.status(500).send('DB에러남');

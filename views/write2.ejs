@@ -12,13 +12,13 @@
           -> application/x-www-form-urlencoded : (기본값) 모든 문자들은 서버로 보내기 전에 인코딩됨을 명시
           -> multipart/form-data : <form> 요소가 파일이나 이미지를 서버로 전송할 때 주로 사용, 모든 문자를 인코딩하지 않음 명시
           -> text/plain : 공백 문자(space)는 "+" 기호로 변환하지만, 나머지 문자는 모두 인코딩되지 않음을 명시 -->
-    <form class="form-box" action="/board/add" method="POST" enctype="multipart/form-data">
+    <form class="form-box" action="/board/add/multiIMG" method="POST" enctype="multipart/form-data">
         <h4>글쓰기</h4>
         <input name="title">
         <input name="content">
         <!-- 이미지 업로드시, s3에 이미지 저장할 수 있도록 file타입으로 input태그 만들기  -->
         <!--   -> accept 속성 : 보내는 file의 속성을 어떤 것만 받아들이라는 input 태그 작성시의 권장사항  -->
-        <input type="file" name="img1" accept="image/*">
+        <input multiple type="file" name="img1" accept="image/*">
         <button type="submit">전송</button>
     </form> 
 

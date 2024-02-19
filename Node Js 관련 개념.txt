@@ -846,6 +846,8 @@
     # multer 라이브러리 사용법
       1. 터미널에 npm install multer multer-s3 @aws-sdk/client-s3  입력 
           -> multer-s3 @aws-sdk/client-s3는 multer 라이브러이에서 AWS S3와 연계를 위해 필요한 추가적인 라이브러리들
+              - multer-s3 : 업로드한 파일을 s3에 쉽게 올릴 수 있게 도와줌 
+              - @aws-sdk/client-s3 : AWS 사용시 필요한 부분 
 
       2. server.js 파일에 아래 코드 작성하여, 라이브러리 사용을 위한 모듈 import 코드 작성
 
@@ -880,12 +882,14 @@
 
                1) upload.single()
                    : 단, 1개의 이미지만 업로드 하고 하고 싶을 경우 사용
+                      -> 이를 통해 가져오는 file들은 요청.file로 참조 가능하며, file객체로 입력되어 있으니 참고 
+                         (= upload.single 함수를 통해 입력되는 속성값은 요청.file이라는 요청객체의 멤버에 입력된 file객체라고 보면 됨)
 
                      ex1) 미들웨어가 api의 paramtere로 들어간 경우
                      
                          app.post('/add', upload.single('img1'), (요청, 응답) => {
 
-                           // 요청.file : 업로드 된 원본의 파일명
+                           // 요청.file : 업로드 된 원본의 파일정보
                            console.log(요청.file)
 
                            // 요청.file.location : multer라이브러리가 이미지를 s3에 업로드 한 뒤, 그 이미지의 s3내 저장 위치 정보에 해당되는 url
@@ -905,7 +909,7 @@
                            upload.single('img1')(요청, 응답, (err)=>{
                              if (err) return 응답.send('에러남')
 
-                             // 요청.file : 업로드 된 원본의 파일명
+                             // 요청.file : 업로드 된 원본의 파일정보
                              console.log(요청.file)
   
                              // 요청.file.location : multer라이브러리가 이미지를 s3에 업로드 한 뒤, 그 이미지의 s3내 저장 위치 정보에 해당되는 url
@@ -920,7 +924,17 @@
 
                2) upload.array(‘input의 name속성 이름’, '업로드 이미지 최대갯수')
                    : 여러개의 이미지를 업로드 하고 싶을 경우 사용
+                      -> 이를 통해 가져오는 file들은 요청.files로 봐야하며, files 안의 구조는 file객체 [] 형식으로 되어 있으니 참고 
+                         (= upload.array 함수를 통해 입력되는 속성값은 요청.file이 아니라 요청.files이며, 그 안은 file객체의 배열이라고 보면 됨)
 
       4. 원하는 화면에서 작업해둔 API를 호출하는 form 형식에서 input 태그를 만들어서 이미지를 업로드 할 수 있도록 코드를 작성함
            -> <input multiple> 이런식으로 input태그에 multiple 속성을 넣으면 여러개의 이미지 선택이 가능함!
+           -> (주의) enctype="multipart/form-data"를 form 태그의 속성으로 넣어줘야 API로 업로드한 파일정보가 제대로 넘어감
+
+               ex) <form class="form-box" action="/board/add" method="POST" enctype="multipart/form-data">
+                       <input type="file" name="img1" accept="image/*">
+                       <button type="submit">전송</button>
+                   </form> 
+
+      5. 4번까지 완료했으면, 사실상 미들웨어 함수 upload.single('이미지 name속성명')이 S3 버킷에 이미지를 올려줌
 
