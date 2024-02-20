@@ -34,7 +34,7 @@
     <% } %> 
 
         <!-- 동기적 이전 다음 구현을 위함-->
-        <div class="white-box">
+        <!-- <div class="white-box">
             <a href="/board/list/before/ver2/<%= 글목록[0]._id %>">이전(db 페이징 처리)</a>
 
         <% for (var j = 1; j <= Math.trunc(글목록.length / 5) + 1; j++){ %>
@@ -42,7 +42,7 @@
         <% } %> 
 
             <a href="/board/list/next/ver2/<%= 글목록[글목록.length - 1]._id %>">다음(db 페이징 처리)</a>
-        </div>
+        </div> -->
     
     </div> 
     <div style="text-align: center"> 
@@ -51,6 +51,8 @@
     </div> 
 </body>
 <script>
+
+    
 
     <% for (var i = 0; i < 글목록.length; i++){ %>
 

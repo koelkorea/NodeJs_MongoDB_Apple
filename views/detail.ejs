@@ -10,6 +10,17 @@
     <div class="detail-bg">
         <h4><%= 상세글.title %></h4>
         <p><%= 상세글.content %></p>
+
+        <!-- img 멤버변수 안의 내용물이 배열인지 여부에 따라 반복문 처리여부를 선택 -->
+        <%  if( Array.isArray(상세글.img) ){
+                <!-- 반복문을 통해 js변수 내부 객체배열의 값을 반복해서 만들어 낸 HTML 태그 -->
+                for (var i = 0; i < 상세글.img.length; i++){ %>
+                    <img src="<%= 상세글.img[i]%>">
+        <%      } 
+            } else { %>     
+
+                <img src="<%= 상세글.img %>">
+        <%  } %>     
     </div> 
 </body>
 </html>

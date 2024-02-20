@@ -196,6 +196,7 @@ router.get('/write', (요청, 응답)=>{
 
 // upload.single()
 //  : 단, 1개의 이미지만 업로드 하고 하고 싶을 경우 사용
+//     -> url정보는 요청 객체의 file 멤버객체의 location에 저장되어 있음
 
 // 입력페이지인 write.ejs 템플릿에서 도메인/add라는 url에 POST 형식으로 보낸 form 데이터를 서버에서 받아 DB에 입력하는 API 구현
 //  -> 한개의 이미지를 S3에 업로드 가능하게 함
@@ -203,14 +204,14 @@ router.post('/add', async (요청, 응답)=>{
 
     // 상단의 보일러 플레이트 코드를 입력했기에, 사용자가 form 요청으로 보낸 input 데이터를 '요청parameter.body' 한 방으로 바로 JSON으로 파싱된 형식으로 볼 수 있음
     console.log(요청.body);
+
+    // 요청.file : 업로드 된 원본의 파일정보 객체
+    console.log(요청.file)
     
     // 서버 API를 거치게 될 때, validator 처리를 위한 조건문
     if (요청.body.title == '') {
 
         응답.send('제목을 적어주시길..')
-
-        // 요청.file : 업로드 된 원본의 파일명
-        console.log(요청.file)
 
     } else {
 
@@ -253,6 +254,7 @@ router.get('/write/multiIMG', (요청, 응답)=>{
 
 // upload.array(‘input의 name속성 이름’, '업로드 이미지 최대갯수')
 //  : 여러개의 이미지를 업로드 하고 싶을 경우 사용
+//     -> 단! 이렇게 여러장의 이미지를 저장할 경우에 그 이미지의 s3 위치 URL 정보는 요청 객체의 file 요소가 아니라 files 요소에 file객체의 배열로서 저장됨 
 
 // 입력페이지인 write.ejs 템플릿에서 도메인/add/multiIMG라는 url에 POST 형식으로 보낸 form 데이터를 서버에서 받아 DB에 입력하는 API 구현
 //  -> 최대 10개의 이미지를 저장할 용도의 API
@@ -261,8 +263,7 @@ router.post('/add/multiIMG',  upload.array('img1', 10), async (요청, 응답)=>
     // 상단의 보일러 플레이트 코드를 입력했기에, 사용자가 form 요청으로 보낸 input 데이터를 '요청parameter.body' 한 방으로 바로 JSON으로 파싱된 형식으로 볼 수 있음
     console.log(요청.body);
 
-    // 요청.file : 업로드 된 원본의 파일명
-    console.log(요청.file);
+    // 요청.files : 업로드 된 원본의 파일정보 객체 배열
     console.log(요청.files);
     
     // 서버 API를 거치게 될 때, validator 처리를 위한 조건문
@@ -284,7 +285,7 @@ router.post('/add/multiIMG',  upload.array('img1', 10), async (요청, 응답)=>
             await db.collection('post').insertOne({
                 title : 요청.body.title,
                 content : 요청.body.content,
-                img : 요청.files.location         // 나중에 게시글 상세조회시 여기 저장된 이미지 url 정보를 통해 s3에 접근하여 이미지를 가져옴 
+                img : 요청.files.map(file => file.location)          // 나중에 게시글 상세조회시 여기 저장된 이미지 url배열의 요소들을 참고하여 s3에 접근하여 이미지를 가져옴 
             })
 
             // 응답parameter명.redirect('/list/paging/ver1/1');
@@ -346,13 +347,31 @@ router.post('/revise/:id', async (요청, 응답)=>{
     } else {
 
         try{
-            // client.db('forum').collection('post').updateOne( { _id : 요청.params.id }, { $set: { title : 요청.body.title, content : 요청.body.content } } );
-            //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션에 id가 url파라미터의 id와 같은 데이터를 찾은뒤 js객체 형식으로 적힌 {}안의 데이터로 수정
-            await db.collection('post').updateOne( { _id : new ObjectId(요청.params.id) }, { $set: { title : 요청.body.title, content : 요청.body.content } } );
 
-            // 응답parameter명.redirect('/list/paging/ver1/1');
-            //  : 도메인 /list/paging/ver1/1 url의 API로 강제로 보내기
-            응답.redirect('/board/list/paging/ver1/1');
+            upload.single('img1')(요청, 응답, async (err)=>{
+
+                if (err) return 응답.send('에러남')
+
+                if (!요청.file) {
+                    return 응답.status(400).send('파일이 업로드되지 않았습니다.');
+                }
+
+                // client.db('forum').collection('post').updateOne( { _id : 요청.params.id }, { $set: { title : 요청.body.title, content : 요청.body.content } } );
+                //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션에 id가 url파라미터의 id와 같은 데이터를 찾은뒤 js객체 형식으로 적힌 {}안의 데이터로 수정
+                await db.collection('post').updateOne( 
+                    { _id : new ObjectId(요청.params.id) }, 
+                    { $set: {   
+                                title : 요청.body.title, 
+                                content : 요청.body.content,
+                                img : 요청.file.location 
+                            } 
+                    } 
+                );
+
+                // 응답parameter명.redirect('/list/paging/ver1/1');
+                //  : 도메인 /list/paging/ver1/1 url의 API로 강제로 보내기
+                응답.redirect('/board/list/paging/ver1/1');
+            })
 
         } catch (e) {
             console.log(e);
