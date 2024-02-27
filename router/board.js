@@ -80,6 +80,40 @@ router.get('/time', async (요청, 응답) =>{
 })
 
 
+// 게시물 검색 기능 
+//  : 특정 데이터에 검색어에 해당하는 문구와 일치하는 녀석을 가져오는 것으로만은 들어가 있는 녀석만 찾는 .find( { 칼럼명1 : '내용'}, ... ,) 로는 완전한 기능 구현이 힘듦
+//    (= 다른 관계형 DB에서는 LIKE 연산자를 통해 해당 기능을 구현했던 것과 같음만 기억하자)
+
+//    (구현법 1) 
+//     MongoDB에서는 find()함수 내부에 $regex라는'정규식' 문법을 사용한 조건문으로 이를 구현이 가능함
+//      -> 하지만 사전에 DB에 정렬된 버전의 DB복사본(= collection)인 index를 구축하지 않고, 그냥 쓰면 느리니 간단한 기능을 제외하면 잘 쓰지 않음 
+app.get('/search/ver1', async (요청, 응답) => {
+
+    // $regex : 정규식을 사용한 조건식으로 
+    let original = await db.collection('post').find( {title : {$regex : 요청.query.val} } );
+    let result = await original.toArray();
+    let stats = await original.explain('executionStats');
+
+    console.log(stats);
+    응답.render('search.ejs', { 글목록 : result });
+}) 
+
+//    (구현법 2) 
+//     post라는 콜랙션에 데이터타입이 text인 index를 생성하고, 이를 바탕으로 검색어의 단어를 완벽히 가지고 있는 document(= data) 검색
+//       -> 데이터 타입이 숫자인 경우라면... $text : { $search : 내용 }이라는 예약어를 사용하지 않아도 됨
+app.get('/search/ver2', async (요청, 응답) => {
+
+    // $text 연산자를 이용해야 index를 활용해서 빠르게 찾아줍니다.
+    // (참고) 숫자를 찾는 경우엔 $text 필요없이 그냥 평소에 쓰던 문법 그대로 써도 index를 알아서 사용해줍니다.
+    let original = await db.collection('post').find( { $text : { $search :  요청.query.val } } );
+    let result = await original.toArray();
+    let stats = await original.explain('executionStats');
+
+    console.log(stats);
+    응답.render('search.ejs', { 글목록 : result });
+}) 
+
+
 // [(동기적) 목록페이지 페이지네이션]
 
 // 1. '페이지네이션 값' 이용

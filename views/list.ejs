@@ -11,6 +11,9 @@
     <!-- include(파일위치)를 통해, js를 붙일 수 있음 -->
     <%- include('nav.ejs') %>
 
+    <input class="search">
+    <button class="search-send">검색</button> 
+
     <div class="white-bg">
 
     <!-- 반복문을 통해 js변수 내부 객체배열의 값을 반복해서 만들어 낸 HTML 태그 -->
@@ -76,6 +79,18 @@
     </div> 
 </body>
 <script>
+
+    // 리스트 검색기능 구현
+    document.querySelector('.search-send').addEventListener('click', function(){
+        let 입력한거 = document.querySelector('.search').value
+
+        // (window).location.href : window객체의 브라우저의 요소를 구성하는 객체로, a태그의 href속성의 그것과 같이 현재 위치하는 url 주소를 띄어줌
+        //   -> a태그를 클릭시 일어나는 그것도 이와 같은 녀석
+        //   -> 이벤트 리스너를 통해 변경도 가능함
+        //   -> (중요) [단점1] 이를 통해서는 GET방식의 호출 밖에 할 수 없음
+        //   -> (중요) [단점2] 반드시 새로고침이 일어나는 방식임
+        location.href = '/search?val=' + 입력한거
+    })
 
     <% for (var i = 0; i < 글목록.length; i++){ %>
 

@@ -23,7 +23,7 @@
    : 비관계형 데이터베이스 DB 중 하나
 
       # MongoDB 구조 종류
-         : document 데이터베이스 = Database -> collection(= Table) -> document단위를 기준으로 한 document당 js객체와 같은 형식으로 구성
+         : document 데이터베이스 = Database -> collection(= Table) -> document(= Data)단위를 기준으로 한 document당 js객체와 같은 형식으로 구성
             -> 코드짜던 js 객체 내용 그대로 데이터베이스에 밀어넣을 수 있어서 매우 저장과 출력이 편리
      
                 ex) Database 예시
@@ -42,6 +42,31 @@
                        { goods   : 'peer'
                          quality : 8   }     <- document (데이터 단수)
 
+      # Collection
+         : MongoDB에서 기존 관계형 DB에서 사용하는 Table 단위와 비슷한 개념으로 존재하는 폴더.. 
+            -> 이를 기준으로 각 DB는 자신 안의 데이터들을 저장할 위치를 구분함
+
+      # index(인덱스) 개념
+         : 어떤 DB의 table(= collection) 데이터들을 어떤 정렬기준을 가지고 정렬시켜 놓은 버전의 복사본
+             -> 이를 기반으로 DB의 데이터들을 조건에 맞게 검색하고 뽑는 작업속도와 효율을 늘리는 목적으로 제작함
+
+           @ index의 특징
+              1. (중요) 보통 검색에 사용하는 알고리즘은 '이진검색(binary search)'이거나 그보다 빠른 알고리즘으로 시간복잡도는 O(log n)보다 빠르다고 보면 됨
+              2. index에 반영된 필드(= 칼럼)이 여러가지인 compound index도 존재함
+              3. (MongoDB 한정) 각 Collection은 기본적으로 _id 순으로 정렬해둔 index가 있음
+
+           @ index의 단점
+              : 어쨌거나 편리한 만큼 공간적 시간적 댓가가 필요하니, 검색작업이 많은 필드들만 index 만들어두는게 비용적으로 이득
+
+                 1. 결국 하드웨어에 이를 저장할 용량을 필요로 함
+                    (= index는 정렬기준을 가지고 정렬시켜 놓은 버전의 복사본)
+   
+                 2. collection(= table)의 document(= data)의 CUD시 index에도 이를 반영해줘야 함
+                    (= index가 너무 많으면, CUD 작업할 때마다 동반되는 작업이 너무 많음)
+
+                 3. (mongoDB 한정) 문자로 정렬한 index는 정확한 단어 검색에 밖에 사용이 불가능 (= 조사가 많이 붙는 언어들은 쓰기가 힘듦)
+                       -> index 제작시 데이터들을 띄어쓰기를 기준으로 독립된 단어들로 구분한 뒤, 검색어와 100% 일치하는 단어가 있는지 없는지 여부로 검색을 수행하기 때문
+                           -> full text index 아니면 search index 라는 개념이 필요
 
       # MongoDB 사용법
          1. 설치해서 쓰기
@@ -51,21 +76,87 @@
              -> full text search index 기능 제공
              -> 돈을 내면, replica set이라고 해서 자동으로 3개의 데이터베이스에 분산저장 및 백업 제공
 
-                1) mongodb.com 가입 후, 설문
-                2) 무료 티어 선택 + 위치는 서울 추천 
-                3) create! 후, 좌측 Database Access 메뉴에서 해당 클라우드 DB 접속용 아이디/비번을 만듦
-                    -> (주의!) mongodb.com 계정이 아니라, 해당 db서버 계정에 대한 것임
-                4) Bulit-in role에 atlas admin으로 설정
-                    -> (중요) 이렇게 해줘야, nodejs에서 DB 접속시 온갖 것들을 다 사용가능
-                5) 좌측 Network Access 메뉴에서 IP를 추가하여, 데이터베이스 접속할 수 있는 IP를 미리 정의해놓는 일종의 보안 설정
-                    -> 보안 필요없이 아무데서나 쓸거면, Allow access from anywhere을 누르시거나 0.0.0.0/0 을 추가
-                6) create DataBase를 통해, DB의 이름과 collection의 이름을 정하고 생성
-                    -> (중요) 이렇게 PROJECT > DB > collection > document(= db의 행에 해당하는 개별 데이터)의 위계를 따르게 됨
-                7) 웹서버와 해당 MongoDB 연결
-                
-      # Collection
-         : MongoDB에서 기존 관계형 DB에서 사용하는 Table 단위와 비슷한 개념으로 존재하는 폴더.. 
-            -> 이를 기준으로 각 DB는 자신 안의 데이터들을 저장할 위치를 구분함
+                [mongodb.com에서 호스팅받는 법]
+   
+                 1) mongodb.com 가입 후, 설문
+                 2) 무료 티어 선택 + 위치는 서울 추천 
+                 3) create! 후, 좌측 Database Access 메뉴에서 해당 클라우드 DB 접속용 아이디/비번을 만듦
+                     -> (주의!) mongodb.com 계정이 아니라, 해당 db서버 계정에 대한 것임
+                 4) Bulit-in role에 atlas admin으로 설정
+                     -> (중요) 이렇게 해줘야, nodejs에서 DB 접속시 온갖 것들을 다 사용가능
+                 5) 좌측 Network Access 메뉴에서 IP를 추가하여, 데이터베이스 접속할 수 있는 IP를 미리 정의해놓는 일종의 보안 설정
+                     -> 보안 필요없이 아무데서나 쓸거면, Allow access from anywhere을 누르시거나 0.0.0.0/0 을 추가
+                 6) create DataBase를 통해, DB의 이름과 collection의 이름을 정하고 생성
+                     -> (중요) 이렇게 PROJECT > DB > collection > document(= db의 행에 해당하는 개별 데이터)의 위계를 따르게 됨
+                 7) 웹서버와 해당 MongoDB 연결
+
+      # (선택) MongoDB에서 index(인덱스) 관련 
+      
+        - index 생성법
+          1. server.js의 API를 통해 mongodb 라이브러리의 명령어로 만들기
+             1) client.db('DB명').collection('컬렉션명').createIndex({ 필드명1 : 데이터타입 , ... , 필드명n : 데이터타입 })
+                  -> 1은 숫자를 오름차순(= -1은 내림차순) 기준으로 정렬, text는 글자를 기준으로 정렬하라는 의미
+ 
+          2. mongodb에서 collection을 특정 기준으로 정렬해 둔 복사본 index 만드는 법 (추천)
+ 
+             1) 원하는 collection -> index ->  create index 클릭
+             2) 페이지의 text 필드의 {} 안에 다음과 같은 형식으로 원하는 collection의 field명과 정렬의 기준으로 삼을 데이터 타입(숫자 = 1 or -1, 글자 = text)을 적음
+                 -> { 필드명1 : 데이터타입 , ... , 필드명n : 데이터타입}
+ 
+                     ex) { number : 1, ... , name : text }  
+                           -> 1은 숫자를 오름차순(= -1은 내림차순) 기준으로 정렬, text는 글자를 기준으로 정렬하라는 의미
+
+        - (중요) 만들어진 index 활용 코드
+           1. (중요) index를 사용한 document 검색 코드
+               : index의 정렬기준이.. text(문자)인 경우? 
+                  -> MongoDB의 find()나 findOne()에 예약어 $text : { $search: '검색어' } 을 기입하여 검색에 index를 사용함
+                     (= index의 정렬기준이 숫자(-1 or 1)인 경우는 걍 신경꺼도 됨)
+ 
+                     ex) (문자) db.collection().find( { $text : { $search: '안녕' } } ).explain('executionStats')
+                           -> index 데이터타입이 문자의 경우 $text : { $search: '검색어' } 을 기입하여 검색에 index를 사용하여 검색
+
+                         (숫자) db.collection().find( { text : '안녕' } ).explain('executionStats')
+                           -> index 데이터타입이 -1 or 1(숫자)인 경우는 걍 신경꺼도 됨
+                          
+           2. (선택) 만약 성능측정 결과가 필요하다면, MongoDB의 CRUD 코드 중, find()나 findOne() 결과값 Cursor변수.explain('executionStats')를 붙여준 뒤 이를 출력함
+ 
+                ex) let stats = db.collection().find( { title : '안녕' } ).explain('executionStats');
+                    console.log(stats);
+                   
+                     -> "executionStats" : {
+                          "executionSuccess" : true,
+                          "nReturned" : 10,
+                          "executionTimeMillis" : 0,
+                          "totalKeysExamined" : 10,
+                          "totalDocsExamined" : 10,               <- 실제로 검색시 까본 collection의 데이터는 10개
+                          "executionStages" : {
+                            "stage" : "FETCH",                    <- "stage" : "FETCH" : 사용된 index가 collection의 모든 필드를 대상으로 했음
+                            "nReturned" : 10,
+                            "docsExamined" : 10,
+                            "inputStage" : {
+                              "stage" : "IXSCAN",
+                              "nReturned" : 10,
+                              "indexName" : "class_1_grade_1"    <- "indexName" : "class_1_grade_1" : 사용한 index명
+                            }
+                          }
+                        } 
+
+                 @ 참고내용
+                    - totalDocsExamined: 참조된 document 횟수
+                    - executionStages  : 쿼리 수행 상세 정보 객체
+                       1) stage : 어떤식으로 작업을 했는가?
+                           -> inputStage가 executionStages의 멤버객체 X
+                                A. TEXT_MATCH : TEXT 일치여부 기준으로 스캔
+                                B. COLLSCAN   : index를 사용X, 콜랙션의 데이터 전체 스캔(Collection Scan)
+
+                           -> inputStage가 executionStages의 멤버객체로 생성
+                                A. SORT : find() 이후 SORT 함수를 사용하였으나, 해당 collection의 모든 필드가 정렬기준이 마련되지 않아 일부만 index가 적용된 경우
+                                    -> inputStage 멤버객체의 stage멤버변수는 "SORT_KEY_GENERATOR"라는 상태값을 가지고, 부분적으로 적용된 index가 있다면, 하위 indexName을 가지는 inputStage 멤버객체가 존재함
+                                B. FETCH : find() 이후 SORT 함수를 사용하고, 해당 collection의 모든 필드가 적용된 compound index가 존재하여 사용 하는 경우 
+                                    -> inputStage 멤버객체의 stage멤버변수는 "IXSCAN"라는 상태값을 가지며, indexName라는 멤버변수를 가짐 
+
+                       2) inputStage : stage에서 선택한 방식의 세부사항을 적음
+
 
       # MongoDB와 웹서버 연결하기
          1. npm install mongodb@5 를 입력하여, mongodb 라이브러리 설치
@@ -100,10 +191,13 @@
             -> (주의) 기본적으로 MongoDB의 CRUD 함수는 Promise 객체를 활용하여 '비동기적'으로 작동하도록 작성된 함수라는 점을 명심... 
                       (= 따라서 MongoDB는 컨텍스트 제어를 위한 async, await를 항시 사용할 것을 권유함.. 그게 아니면 db요청 결과를 기다리지 않고, 그냥 진행함)
          
-           1. (컬랙션명에 데이터를) 입력(insertOne)
+           1. (컬랙션명에 데이터를) 단일 입력(insertOne)
                : client.db('프로젝트명').collection('컬렉션명').insertOne( {칼럼명1 : '내용1'} , ... , {칼럼명2 : '내용2'} )
 
-           2. 단일 데이터만 수정(updateOne)
+           2. (컬랙션명에 데이터를) 복수 개수 입력(insertMany)
+               : client.db('프로젝트명').collection('컬렉션명').insertOne( {칼럼명1 : '내용1', 칼럼명2 : '내용2'} , ...  )
+
+           3. 단일 데이터만 수정(updateOne)
                : client.db('프로젝트명').collection('컬렉션명').updateOne( {수정할 데이터 검색할 칼럼명 : '원래 내용'}, $예약어 {칼럼명1 : '수정할 내용1'} , ... , {칼럼명2 : '수정할 내용2'} } )
 
                  @ 예약어 리스트
@@ -123,26 +217,41 @@
 
                         -> client.db('프로젝트명').collection('컬렉션명').updateOne( {수정할 데이터 검색할 칼럼명 : '원래 내용'}, { $unset: 칼럼명1 , ... , 칼럼명2 } } )
 
-           3. (검색에 해당되는) 복수 데이터들 일괄 수정(updateMany)
+           4. (검색에 해당되는) 복수 데이터들 일괄 수정(updateMany)
                : client.db('프로젝트명').collection('컬렉션명').updateMany( {수정할 데이터 검색할 칼럼명 : '원래 내용' or { $조건식 : 숫자 } }, $예약어 {칼럼명1 : '수정할 내용1'} , ... , {칼럼명2 : '수정할 내용2'} } )
 
                  @ 조건식
                     : > 5, <= 6 이런식으로 특정 연산조건에 맞는 데이터들만 골라서 검색할 떄 사용
-                       ->  {수정할 데이터 검색할 칼럼명 : { $조건식 : 숫자 } } 이런식으로 {}를 하나 더 만듦
+                       -> {검색할 필드명 : { $조건식 : 숫자 } } 이런식으로 {}를 하나 더 만듦
 
-                            1) gt(greater than)        : '>' 초과를 의미
-                            2) gte(greater than equal) : '>=' 이상을 의미
-                            3) lt(greater than)        : '<' 미만을 의미   
-                            4) lte(greater than equal) : '<=' 이하를 의미   
-                            5) ne(not equal) : '!=' 어떤 수가 아님을 의미              
+                           1) $gt(greater than)        : '>' 초과를 의미
+                           2) $gte(greater than equal) : '>=' 이상을 의미
+                           3) $lt(greater than)        : '<' 미만을 의미   
+                           4) $lte(greater than equal) : '<=' 이하를 의미   
+                           5) $ne(not equal) : '!=' 어떤 수가 아님을 의미              
 
-                               ex1) client.db('프로젝트명').collection('컬렉션명').updateMany( {수정할 데이터 검색할 칼럼명 : { $gt : 5 } }, { $set: {칼럼명1 : '수정할 내용1'} } )
-                                     : 칼럼명이 5를 초과하는 모든 데이터의 칼럼명1의 값을 '수정할 내용1'로 수정해라
+                              ex1) client.db('프로젝트명').collection('컬렉션명').updateMany( {수정할 데이터 검색할 칼럼명 : { $gt : 5 } }, { $set: {칼럼명1 : '수정할 내용1'} } )
+                                    : 칼럼명이 5를 초과하는 모든 데이터의 칼럼명1의 값을 '수정할 내용1'로 수정해라
 
-                               ex2) client.db('프로젝트명').collection('컬렉션명').updateMany( {수정할 데이터 검색할 칼럼명 : { $gte : 3 } }, { $inc: {칼럼명1 : -5} } )
-                                     : 칼럼명이 3이 아닌 모든 데이터의 칼럼명1의 값을 -5해라
+                              ex2) client.db('프로젝트명').collection('컬렉션명').updateMany( {수정할 데이터 검색할 칼럼명 : { $gte : 3 } }, { $inc: {칼럼명1 : -5} } )
+                                    : 칼럼명이 3이 아닌 모든 데이터의 칼럼명1의 값을 -5해라
 
-           3. 목록조회(find)
+                 @ 예약어 {칼럼명 : { $예약어 : 내용 } }
+                    : 말 그대로 특정한 개념을 의미하는 예약어로 용도에 맞게 사용
+                       -> {검색할 필드명 : { $예약어 : 내용 } } 이런식으로 {}를 하나 더 만듦
+                           -> 경우에 따라서는 {검색할 필드명 : { $예약어 : { $예약어 : 내용 } } } 이런식의 이중 예약어 {}도 사용 가능
+
+                           1) $regex : 특정한 내용에 대해 정규식을 사용하여 검색함을 의미      
+
+                              ex) client.db('프로젝트명').collection('컬렉션명').find( {title : {$regex : 요청.query.val} } );
+
+                           2) $text   : 해당 collection에서 필드를 text로 정렬한 index를 사용하겠다는 의미로 보통 $search와 같이 쓰임
+                           3) $search : $text와 함께 쓰이는 예약어로, 특정한 내용에 대해 해당 collection에서 필드를 text로 정렬한 index를 사용해 검색함을 의미     
+
+                              ex) client.db('프로젝트명').collection('컬렉션명').find( { $text : { $search: '안녕' } } ).
+                                    : 해당 컬랙션명의 document 중 '안녕'이란 단어를 가지고 있는 녀석들을 데이터타입 text를 사용한 index를 사용해서 검색함을 의미
+
+           5. 목록조회(find)
                : client.db('프로젝트명').collection('컬렉션명').find() 
                   -> 해당 프로젝트의 collection에 위치한 원하는 데이터 목록의 시작점이 위치한 DB의 커서 Cursor(DB 포인터 -> 메모리 주소)를 반환해 줌
 
@@ -152,10 +261,11 @@
 
                  @ find() 함수 기본 사용법
                     : find()안에 검색조건이 없으면, 해당 collection의 모든 데이터를 대상으로 함
-                      (= find() 안에 칼럼명 : '내용' or '조건식'을 통해 검색조건을 내걸어서 원하는 데이터만 뽑는 쿼리를 작성도 가능함)
+                      (= find() 안에 칼럼명 : '내용' or '조건식' or '예약어'을 통해 검색조건을 내걸어서 원하는 데이터만 뽑는 쿼리를 작성도 가능함)
+                          -> 예약어에는 index나 정규식들도 사용 가능
 
-                       ex1) client.db('프로젝트명').collection('컬렉션명').findOne( { 칼럼명1 : '내용'}, ... , {칼럼명2 : '내용'} )
-                       ex2) client.db('프로젝트명').collection('컬렉션명').findOne( { 칼럼명1 : { $조건식 : 숫자 } } , ... , { 칼럼명2 : { $조건식 : 숫자 } )
+                       ex1) client.db('프로젝트명').collection('컬렉션명').find( { 칼럼명1 : '내용'}, ... , {칼럼명2 : '내용'} )
+                       ex2) client.db('프로젝트명').collection('컬렉션명').find( { 칼럼명1 : { $조건식 : 숫자 } } , ... , { 칼럼명2 : { $조건식 : 숫자 } )
 
                  @ 대표적 Cursor 메서드들(cursor로 리턴되는 한 체이닝 가능)
 
@@ -180,13 +290,31 @@
                     6) cursor객체변수.next()
                         : 현재 cursor의 값을 기준으로 다음 데이터의 위치를 반환
 
+                    7) cursor객체변수.explain("executionStats")
+                        : 현재 cursor의 값이 도출되기까지의 성능과 관련된 통계에 대한 데이터를 반환
+                            -> 참고내용 (예시는 index 개념 참고)
+                               - totalDocsExamined: 참조된 document 횟수
+                               - executionStages  : 쿼리 수행 상세 정보 객체
+                                  1) stage : 어떤식으로 작업을 했는가?
+                                      -> inputStage가 executionStages의 멤버객체 X
+                                           A. TEXT_MATCH : TEXT 일치여부 기준으로 스캔
+                                           B. COLLSCAN   : index를 사용X, 콜랙션의 데이터 전체 스캔(Collection Scan)
+           
+                                      -> inputStage가 executionStages의 멤버객체로 생성
+                                           A. SORT : find() 이후 SORT 함수를 사용하였으나, 해당 collection의 모든 필드가 정렬기준이 마련되지 않아 일부만 index가 적용된 경우
+                                               -> inputStage 멤버객체의 stage멤버변수는 "SORT_KEY_GENERATOR"라는 상태값을 가지고, 부분적으로 적용된 index가 있다면, 하위 indexName을 가지는 inputStage 멤버객체가 존재함
+                                           B. FETCH : find() 이후 SORT 함수를 사용하고, 해당 collection의 모든 필드가 적용된 compound index가 존재하여 사용 하는 경우 
+                                               -> inputStage 멤버객체의 stage멤버변수는 "IXSCAN"라는 상태값을 가지며, indexName라는 멤버변수를 가짐 
+           
+                                  2) inputStage : stage에서 선택한 방식의 세부사항을 적음
+
                  @ (응용) 만약..? 페이지네이션 같이 특정 부분에 존재하는 데이터들을 몇 개만 가져오고 싶으면?
                     : find() 함수를 사용하여 뽑은 목록값에 추가적인 함수 chaining을 통해 추가적 데이터 목록의 통제가 가능
                       (해당 db위치를 기준으로 ( [생략가능] '숫자'만큼의 데이터들은 건너뛰고) '숫자'만큼의 데이터만 가져옴)
                         -> cursor객체변수.[skip(숫자)].limit(숫자).toArray();
 
 
-           4. 개별조회(findOne)
+           6. 개별조회(findOne)
                : client.db('프로젝트명').collection('컬렉션명').findOne( {칼럼명 : '내용'} );
                   -> 칼럼명이 '내용'에 들어맞는 어떤 1가지의 데이터만 뽑음
 
