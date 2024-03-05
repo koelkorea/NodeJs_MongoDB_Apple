@@ -11,7 +11,7 @@
     <!-- include(파일위치)를 통해, js를 붙일 수 있음 -->
     <%- include('nav.ejs') %>
 
-    <input class="search">
+    <input class="search" value="<%= 검색어 %>">
     <button class="search-send regex">검색(정규식)</button> 
     <button class="search-send text_index">검색(text Index)</button> 
     <button class="search-send search_index">검색(search Index)</button> 
@@ -38,47 +38,15 @@
         
     <% } %> 
 
-        <!-- 동기적 이전 다음 구현을 위함-->
-        <div class="white-box">
-
-        <% if ( ( (페이지 * 1) != 1 ) || (갯수 == 0) ) { %>
-            <a href="/board/list/paging/ver1/<%= parseInt(페이지) - 1 %>">이전(db 페이징 처리)</a>
-        <% } %> 
-
-        <% for (var j = 1; j <= Math.trunc(갯수 / 5) + 1; j++){ %>
-            <a href="/board/list/paging/ver1/<%=j%>"> <%= j %> </a>
-        <% } %> 
-
-        <% if ( ( (페이지 * 1) != Math.trunc(갯수 / 5) + 1 ) || (갯수 == 0) ) { %>
-            <a href="/board/list/paging/ver1/<%= parseInt(페이지) + 1 %>">다음(db 페이징 처리)</a>
-        <% } %> 
-
-        </div>
-    
-        </br>
 
         <!-- 동기적 이전 다음 구현을 위함-->
         <div class="white-box">
-
-
-        <% if ( (페이지 * 1) != 1 ){ %>
-            <a href="/board/list/paging/ver2/<%= parseInt(페이지) - 1 %>">이전(웹서버 페이징 처리)</a>
-        <% } %> 
-
-        <% for (var j = 1; j <= Math.trunc(갯수 / 5) + 1; j++){ %>
-            <a href="/board/list/paging/ver2/<%=j%>"> <%= j %> </a>
-        <% } %> 
-
-        <% if ( (페이지 * 1) != Math.trunc(갯수 / 5) + 1 ){ %>
-            <a href="/board/list/paging/ver2/<%= parseInt(페이지) + 1 %>">다음(웹서버 페이징 처리)</a>
-        <% } %> 
-
+            <a href="/board/search/ver3/<%= parseInt(페이지) - 1 %>?val=<%= 검색어 %>">이전(db 페이징 처리)</a>
+            <a href="/board/search/ver3/<%= parseInt(페이지) + 1 %>?val=<%= 검색어 %>">다음(db 페이징 처리)</a>
         </div>
+
     </div> 
-    <div style="text-align: center"> 
-        <!-- <%= JSON.stringify(글목록) %> -->
-        <%= 날짜 %>
-    </div> 
+
 </body>
 <script>
 
@@ -116,6 +84,7 @@
         //   -> (중요) [단점2] 반드시 새로고침이 일어나는 방식임
         location.href = '/board/search/ver3/1?val=' + 입력한거
     })
+    
     
     <% for (var i = 0; i < 글목록.length; i++){ %>
 

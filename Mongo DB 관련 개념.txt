@@ -46,28 +46,6 @@
          : MongoDB에서 기존 관계형 DB에서 사용하는 Table 단위와 비슷한 개념으로 존재하는 폴더.. 
             -> 이를 기준으로 각 DB는 자신 안의 데이터들을 저장할 위치를 구분함
 
-      # index(인덱스) 개념
-         : 어떤 DB의 table(= collection) 데이터들을 어떤 정렬기준을 가지고 정렬시켜 놓은 버전의 복사본
-             -> 이를 기반으로 DB의 데이터들을 조건에 맞게 검색하고 뽑는 작업속도와 효율을 늘리는 목적으로 제작함
-
-           @ index의 특징
-              1. (중요) 보통 검색에 사용하는 알고리즘은 '이진검색(binary search)'이거나 그보다 빠른 알고리즘으로 시간복잡도는 O(log n)보다 빠르다고 보면 됨
-              2. index에 반영된 필드(= 칼럼)이 여러가지인 compound index도 존재함
-              3. (MongoDB 한정) 각 Collection은 기본적으로 _id 순으로 정렬해둔 index가 있음
-
-           @ index의 단점
-              : 어쨌거나 편리한 만큼 공간적 시간적 댓가가 필요하니, 검색작업이 많은 필드들만 index 만들어두는게 비용적으로 이득
-
-                 1. 결국 하드웨어에 이를 저장할 용량을 필요로 함
-                    (= index는 정렬기준을 가지고 정렬시켜 놓은 버전의 복사본)
-   
-                 2. collection(= table)의 document(= data)의 CUD시 index에도 이를 반영해줘야 함
-                    (= index가 너무 많으면, CUD 작업할 때마다 동반되는 작업이 너무 많음)
-
-                 3. (mongoDB 한정) 문자로 정렬한 index는 정확한 단어 검색에 밖에 사용이 불가능 (= 조사가 많이 붙는 언어들은 쓰기가 힘듦)
-                       -> index 제작시 데이터들을 띄어쓰기를 기준으로 독립된 단어들로 구분한 뒤, 검색어와 100% 일치하는 단어가 있는지 없는지 여부로 검색을 수행하기 때문
-                           -> full text index 아니면 search index 라는 개념이 필요
-
       # MongoDB 사용법
          1. 설치해서 쓰기
          2. mongodb.com 클라우드에서 호스팅받기 (추천)
@@ -90,73 +68,206 @@
                      -> (중요) 이렇게 PROJECT > DB > collection > document(= db의 행에 해당하는 개별 데이터)의 위계를 따르게 됨
                  7) 웹서버와 해당 MongoDB 연결
 
+      # index(인덱스) 개념
+         : 어떤 DB의 table(= collection) 데이터들을 어떤 정렬기준을 가지고 정렬시켜 놓은 버전의 복사본
+             -> 이를 기반으로 DB의 데이터들을 조건에 맞게 검색하고 뽑는 작업속도와 효율을 늘리는 목적으로 제작함
+
+           @ index의 특징
+              1. (중요) 보통 검색에 사용하는 알고리즘은 '이진검색(binary search)'이거나 그보다 빠른 알고리즘으로 시간복잡도는 O(log n)보다 빠르다고 보면 됨
+              2. index에 반영된 필드(= 칼럼)이 여러가지인 compound index도 존재함
+              3. (MongoDB 한정) 각 Collection은 기본적으로 _id 순으로 정렬해둔 index가 있음
+
+           @ index의 단점
+              : 어쨌거나 편리한 만큼 공간적 시간적 댓가가 필요하니, 검색작업이 많은 필드들만 index 만들어두는게 비용적으로 이득
+
+                 1. 결국 하드웨어에 이를 저장할 용량을 필요로 함
+                    (= index는 정렬기준을 가지고 정렬시켜 놓은 버전의 복사본)
+   
+                 2. collection(= table)의 document(= data)의 CUD시 index에도 이를 반영해줘야 함
+                    (= index가 너무 많으면, CUD 작업할 때마다 동반되는 작업이 너무 많음)
+
+                 3. (mongoDB 한정) 문자(= text)로 정렬한 index는 정확한 단어 검색에 밖에 사용이 불가능 (= 조사가 많이 붙는 언어들은 쓰기가 힘듦)
+                       -> index 제작시 데이터들을 띄어쓰기를 기준으로 독립된 단어들로 구분한 뒤, 검색어와 100% 일치하는 단어가 있는지 없는지 여부로 검색을 수행하기 때문
+                           -> full text index (= search index) 라는 개념이 필요
+
+      # search index (= 타 DB에서 full text index) 개념
+         : MongoDB에서 문자를 100%가 아니라 부분적으로 포함될 경우라도 검색결과에 포함할 용도로 만들어진 index 
+           (= 일반적으로 생각하는 검색기능에 부합할 수 있도록 제작된 정렬기준으로 제작된 index)
+
+           @ search index 제작과정 및 동작 원리
+              1. index를 만들 때 document(= 데이터)에 있는 특정 칼럼(= 필드)에 있는 문장들을 가져와서 조사, 부호 등 쓸데없는 불용어들을 다 제거
+
+                  ex) 영어 기준   : 문장의 단어 중 and or the ~s 
+                  ex) 한국어 기준 : 을, 를, 이, 가, 그리고, 또는 
+
+              2. 1번의 과정을 거쳐 등장한 단어들을 다 뽑아서 정렬한 목록 제작
+                 (= 해당 단어들을 목록에서 쉽게 빠르게 찾을 수 있으며, 이를 3번과정에서 부분검색기능에 활용하도록 하는 포석)
+
+              3. 2번의 목록에서 해당 단어들이 어떤 document에 등장했는지와 연관된 필드를 만들고, 해당 단어가 등장한 document id같은걸 함께 단어 옆에 기재
+              4. 검색을 하면 해당 index 목록을 참고하여, 검색어에 따른 document를 찾아서 클라이언트 측에 제공
+                  -> seafood chicken 이렇게 검색하면, seafood와 chicken을 earch index에서 각각 검색하여, 그것이 존재하는 document를 도출하고, 이를 검색함수 find에 넣어서 결과를 도출해 클라이언트 측에 제공 
+              
+                     ex) <document>
+                          _id : 1
+                          title : Seafood and restaurants
+
+                          _id : 2
+                          title : Seafood and chicken
+
+                          _id : 3
+                          title : the game reviews~!
+
+                         <제작된 search index>
+                          단어         존재하는 docu ID
+                          chicken      2
+                          game         3
+                          restaurant   1
+                          review       3
+                          seafood      1, 2                <- seafood를 검색한다면, 그것이 _id 1, 2에 존재한다는걸 알수 있기에, 이를 검색함수 find에 넣어서 결과를 도출해 클라이언트 측에 제공
+
+           @ search index 특징
+              1. 찾아온 document가 좀 많으면 내부적으로 중요해보이는 document들을 맨 위로 올려서 가져와줌
+              2. 검색어 자동완성기능, 유사단어 검색기능 이런 것도 설정 가능
+
+
       # (선택) MongoDB에서 index(인덱스) 관련 
+
+        1. 일반 index
       
-        - index 생성법
-          1. server.js의 API를 통해 mongodb 라이브러리의 명령어로 만들기
-             1) client.db('DB명').collection('컬렉션명').createIndex({ 필드명1 : 데이터타입 , ... , 필드명n : 데이터타입 })
-                  -> 1은 숫자를 오름차순(= -1은 내림차순) 기준으로 정렬, text는 글자를 기준으로 정렬하라는 의미
- 
-          2. mongodb에서 collection을 특정 기준으로 정렬해 둔 복사본 index 만드는 법 (추천)
- 
-             1) 원하는 collection -> index ->  create index 클릭
-             2) 페이지의 text 필드의 {} 안에 다음과 같은 형식으로 원하는 collection의 field명과 정렬의 기준으로 삼을 데이터 타입(숫자 = 1 or -1, 글자 = text)을 적음
-                 -> { 필드명1 : 데이터타입 , ... , 필드명n : 데이터타입}
- 
-                     ex) { number : 1, ... , name : text }  
-                           -> 1은 숫자를 오름차순(= -1은 내림차순) 기준으로 정렬, text는 글자를 기준으로 정렬하라는 의미
+           @ index 생성법
+              1. server.js의 API를 통해 mongodb 라이브러리의 명령어로 만들기
+                1) client.db('DB명').collection('컬렉션명').createIndex({ 필드명1 : 데이터타입 , ... , 필드명n : 데이터타입 })
+                     -> 1은 숫자를 오름차순(= -1은 내림차순) 기준으로 정렬, text는 글자를 기준으로 정렬하라는 의미
+    
+              2. mongodb에서 collection을 특정 기준으로 정렬해 둔 복사본 index 만드는 법 (추천)
+    
+                1) 원하는 collection -> index ->  create index 클릭
+                2) 페이지의 text 필드의 {} 안에 다음과 같은 형식으로 원하는 collection의 field명과 정렬의 기준으로 삼을 데이터 타입(숫자 = 1 or -1, 글자 = text)을 적음
+                    -> { 필드명1 : 데이터타입 , ... , 필드명n : 데이터타입}
+    
+                        ex) { number : 1, ... , name : text }  
+                              -> 1은 숫자를 오름차순(= -1은 내림차순) 기준으로 정렬, text는 글자를 기준으로 정렬하라는 의미
+   
+           @ (중요) 만들어진 index server.js에서 활용하는 코드
+              1. (중요) index를 사용한 document 검색 코드
+                  : index의 정렬기준이.. text(문자)인 경우? 
+                     -> MongoDB의 find()나 findOne()에 예약어 $text : { $search: '검색어' } 을 기입하여 검색에 index를 사용함
+                        (= index의 정렬기준이 숫자(-1 or 1)인 경우는 걍 신경꺼도 됨)
+    
+                        ex) (문자) db.collection().find( { $text : { $search: '안녕' } } ).explain('executionStats')
+                              -> index 데이터타입이 문자의 경우 $text : { $search: '검색어' } 을 기입하여 검색에 index를 사용하여 검색
+   
+                            (숫자) db.collection().find( { text : '안녕' } ).explain('executionStats')
+                              -> index 데이터타입이 -1 or 1(숫자)인 경우는 걍 신경꺼도 됨
+                             
+              2. (선택) 만약 성능측정 결과가 필요하다면, MongoDB의 CRUD 코드 중, find()나 findOne() 결과값 Cursor변수.explain('executionStats')를 붙여준 뒤 이를 출력함
+    
+                   ex) let stats = db.collection().find( { title : '안녕' } ).explain('executionStats');
+                       console.log(stats);
+                      
+                        -> "executionStats" : {
+                             "executionSuccess" : true,
+                             "nReturned" : 10,
+                             "executionTimeMillis" : 0,
+                             "totalKeysExamined" : 10,
+                             "totalDocsExamined" : 10,               <- 실제로 검색시 까본 collection의 데이터는 10개
+                             "executionStages" : {
+                               "stage" : "FETCH",                    <- "stage" : "FETCH" : 사용된 index가 collection의 모든 필드를 대상으로 했음
+                               "nReturned" : 10,
+                               "docsExamined" : 10,
+                               "inputStage" : {
+                                 "stage" : "IXSCAN",
+                                 "nReturned" : 10,
+                                 "indexName" : "class_1_grade_1"    <- "indexName" : "class_1_grade_1" : 사용한 index명
+                               }
+                             }
+                           } 
+   
+                     [참고내용]
+                       - totalDocsExamined: 참조된 document 횟수
+                       - executionStages  : 쿼리 수행 상세 정보 객체
+                          1) stage : 어떤식으로 작업을 했는가?
+                              -> inputStage가 executionStages의 멤버객체 X
+                                   A. TEXT_MATCH : TEXT 일치여부 기준으로 스캔
+                                   B. COLLSCAN   : index를 사용X, 콜랙션의 데이터 전체 스캔(Collection Scan)
+   
+                              -> inputStage가 executionStages의 멤버객체로 생성
+                                   A. SORT : find() 이후 SORT 함수를 사용하였으나, 해당 collection의 모든 필드가 정렬기준이 마련되지 않아 일부만 index가 적용된 경우
+                                       -> inputStage 멤버객체의 stage멤버변수는 "SORT_KEY_GENERATOR"라는 상태값을 가지고, 부분적으로 적용된 index가 있다면, 하위 indexName을 가지는 inputStage 멤버객체가 존재함
+                                   B. FETCH : find() 이후 SORT 함수를 사용하고, 해당 collection의 모든 필드가 적용된 compound index가 존재하여 사용 하는 경우 
+                                       -> inputStage 멤버객체의 stage멤버변수는 "IXSCAN"라는 상태값을 가지며, indexName라는 멤버변수를 가짐 
+   
+                          2) inputStage : stage에서 선택한 방식의 세부사항을 적음
 
-        - (중요) 만들어진 index 활용 코드
-           1. (중요) index를 사용한 document 검색 코드
-               : index의 정렬기준이.. text(문자)인 경우? 
-                  -> MongoDB의 find()나 findOne()에 예약어 $text : { $search: '검색어' } 을 기입하여 검색에 index를 사용함
-                     (= index의 정렬기준이 숫자(-1 or 1)인 경우는 걍 신경꺼도 됨)
- 
-                     ex) (문자) db.collection().find( { $text : { $search: '안녕' } } ).explain('executionStats')
-                           -> index 데이터타입이 문자의 경우 $text : { $search: '검색어' } 을 기입하여 검색에 index를 사용하여 검색
+        2. search index 관련
 
-                         (숫자) db.collection().find( { text : '안녕' } ).explain('executionStats')
-                           -> index 데이터타입이 -1 or 1(숫자)인 경우는 걍 신경꺼도 됨
+           @ search index 생성법 (로컬 download로는 생성 불가!)
+              1. MongoDB 사이트의 collection -> index -> search index 만들기(= create) 버튼 클릭
+              2. index 이름은 자유롭게 작명, 어떤 collection의 index인지를 선택 후 next버튼 클릭 후 refine 클릭
+              3. index를 커스터마이징 하는 부분에서 다음과 같이 설정
+                  - analyzer : lucene.korean
+                  - dynamic mapping : off
+                     -> lucene.korean
+                         : 각 document의 필드의 이터 분석시 lucene이라는 라이브러리를 이용해서 '한국어' 기준 쓸데없는 불용어나 조사를 제거해주라고 설정
+                     -> dynamic mapping 
+                         : 각 document에 있는 모든 필드들을 indexing할 것인지 결정 
+                           (off를 하면? 5번의 field mapping을 직접 작성 = index 적용 필드를 직접 설정한다는 의미)
+   
+              4. (dynamic mapping : off를 설정시) Add field mapping을 클릭
+                  -> 이후, 어떤 field(= column)를 기준으로 search index를 만들 것인지 설정하는 field mapping 추가
+                     (= 검색어 입력시 검색의 대상이 되어야할 field(= column)들을 정확히 설정하여 검색의 범위를 정확히 설정해야 성능 낭비가 없음)
+   
+              5. search index 생성 이후 편의기능
+                  -> query 버튼을 누르면 직접 검색 잘 되는지 테스트 가능
+                  -> search index에 존재하는 단어 중 자주 검색되는 단어는 높은 score를 가짐
+                     (= 높은 score 가진 document를 자동으로 위로 올려주기 때문에, 검색 순위같은 것도 자동 구현 가능)
+
+           @ (중요) 만들어진 search index server.js에서 활용하는 코드
+              : client.db('프로젝트명').collection('컬렉션명').aggregate()
+                 -> .find()와 유사.. BUT! ()안에 여러 조건식을 [{조건1}, {조건2} ... ] 형식으로 적용을 원할 때 사용
+
+                     ex) 이처럼 검색 조건식을 변수에 담아서 써도 아무 문제 없음 
+
+                         let 검색조건 = [
+                           {$search : {
+                             index : '사용할 인덱스 이름',
+                             text : { query : '검색어', path : '검색할 필드이름' }
+                           }},
+                           { $sort : { _id : 1 } },
+                           { $limit : 10 },
+                           { $project : { 제목 : 1, _id : 0 } }
+                         ] 
+                        
+                         db.collection().aggregate(검색조건).toArray()
+
+                 [참고내용] 
+                  aggregate()에서 쓸 수 있는 대표적 연산자들 (= 찾아보면 더 있다 이런말..)
+                 
+                    1) $search : { index : '사용할 인덱스명', text : { query : '검색어', path : '검색할 field명' } }
+                        : search index를 이용해서 주어진 조건들을 활용한 검색을 수행 
+
+                    2) $sort : { field명(= column명) : 숫자 }
+                        : 검색 결과를 field명의 데이터를 기준으로 정렬 
+                           -> 안 쓰면? 기본적으로 score 순으로 정렬됨
+
+                               ex) { _id : 숫자}  -> 데이터들을 _id 순으로 정렬
+                            
+                    3) $limit : 숫자 
+                        : 검색 결과의 데이터 수를 숫자 개수 만큼만 제한 (= cursor객체변수.limit(숫자)) 
                           
-           2. (선택) 만약 성능측정 결과가 필요하다면, MongoDB의 CRUD 코드 중, find()나 findOne() 결과값 Cursor변수.explain('executionStats')를 붙여준 뒤 이를 출력함
- 
-                ex) let stats = db.collection().find( { title : '안녕' } ).explain('executionStats');
-                    console.log(stats);
-                   
-                     -> "executionStats" : {
-                          "executionSuccess" : true,
-                          "nReturned" : 10,
-                          "executionTimeMillis" : 0,
-                          "totalKeysExamined" : 10,
-                          "totalDocsExamined" : 10,               <- 실제로 검색시 까본 collection의 데이터는 10개
-                          "executionStages" : {
-                            "stage" : "FETCH",                    <- "stage" : "FETCH" : 사용된 index가 collection의 모든 필드를 대상으로 했음
-                            "nReturned" : 10,
-                            "docsExamined" : 10,
-                            "inputStage" : {
-                              "stage" : "IXSCAN",
-                              "nReturned" : 10,
-                              "indexName" : "class_1_grade_1"    <- "indexName" : "class_1_grade_1" : 사용한 index명
-                            }
-                          }
-                        } 
+                          ex) { $limit : 10 } -> 검색결과 중에 맨 위의 10개 document만 가져올 수 있습니다. 
 
-                 @ 참고내용
-                    - totalDocsExamined: 참조된 document 횟수
-                    - executionStages  : 쿼리 수행 상세 정보 객체
-                       1) stage : 어떤식으로 작업을 했는가?
-                           -> inputStage가 executionStages의 멤버객체 X
-                                A. TEXT_MATCH : TEXT 일치여부 기준으로 스캔
-                                B. COLLSCAN   : index를 사용X, 콜랙션의 데이터 전체 스캔(Collection Scan)
+                    4) $skip : 숫자 
+                        : 검색 결과의 데이터 수를 숫자 개수 만큼 지나친 위치에서 받아오기 시작함 (= cursor객체변수.skip(숫자)) 
+                           -> 페이지네이션도 구현가능한 방법 중 하나
 
-                           -> inputStage가 executionStages의 멤버객체로 생성
-                                A. SORT : find() 이후 SORT 함수를 사용하였으나, 해당 collection의 모든 필드가 정렬기준이 마련되지 않아 일부만 index가 적용된 경우
-                                    -> inputStage 멤버객체의 stage멤버변수는 "SORT_KEY_GENERATOR"라는 상태값을 가지고, 부분적으로 적용된 index가 있다면, 하위 indexName을 가지는 inputStage 멤버객체가 존재함
-                                B. FETCH : find() 이후 SORT 함수를 사용하고, 해당 collection의 모든 필드가 적용된 compound index가 존재하여 사용 하는 경우 
-                                    -> inputStage 멤버객체의 stage멤버변수는 "IXSCAN"라는 상태값을 가지며, indexName라는 멤버변수를 가짐 
+                          ex) { $skip : 10 } -> 검색결과 중에 맨 위의 10개는 버리고 11번째부터 document부터 가져와 줌 
 
-                       2) inputStage : stage에서 선택한 방식의 세부사항을 적음
-
+                    5) $project : {필드명1 : 0 or 1, ... , 필드명n : 0 or 1}
+                        : 데이터 검색 결과 중에 1번에 해당하는 필드명의 데이터들만 가져오라고 걸러줄 수 있음
+                         
+                          ex) {title : 1, content : 0}  -> 이러면 title은 보여줌, content는 숨김이라는 뜻
+  
 
       # MongoDB와 웹서버 연결하기
          1. npm install mongodb@5 를 입력하여, mongodb 라이브러리 설치
@@ -185,6 +296,7 @@
              -> 만든 database의 connect 버튼을 누른 뒤, driver를 선택하면..
                 "mongodb+srv://DB접속아이디:DB접속비번@cluster0.jea.mongodb.net/?retryWrites=true&w=majority"
                   -> 이런 느낌의 문자열이 나오는데, 이걸 찾아서 대입해주면 됨
+
 
       # MongoDB의 CRUD 사용법
          : client.db('프로젝트명').collection('컬렉션명').CRUD함수명({내용}) 형식으로 작성
@@ -241,12 +353,12 @@
                        -> {검색할 필드명 : { $예약어 : 내용 } } 이런식으로 {}를 하나 더 만듦
                            -> 경우에 따라서는 {검색할 필드명 : { $예약어 : { $예약어 : 내용 } } } 이런식의 이중 예약어 {}도 사용 가능
 
-                           1) $regex : 특정한 내용에 대해 정규식을 사용하여 검색함을 의미      
+                           1) $regex : 정규식과 연관된 연산자, 특정한 내용에 대해 정규식을 사용하여 검색함을 의미      
 
                               ex) client.db('프로젝트명').collection('컬렉션명').find( {title : {$regex : 요청.query.val} } );
 
-                           2) $text   : 해당 collection에서 필드를 text로 정렬한 index를 사용하겠다는 의미로 보통 $search와 같이 쓰임
-                           3) $search : $text와 함께 쓰이는 예약어로, 특정한 내용에 대해 해당 collection에서 필드를 text로 정렬한 index를 사용해 검색함을 의미     
+                           2) $text   : text index와 연관된 연산자로, 해당 collection에서 필드를 text로 정렬한 index를 사용하겠다는 의미로 보통 $search와 같이 쓰임
+                           3) $search : $text와 함께 쓰이는 연산자로, 특정한 내용에 대해 해당 collection에서 필드를 text로 정렬한 index를 사용해 검색함을 의미     
 
                               ex) client.db('프로젝트명').collection('컬렉션명').find( { $text : { $search: '안녕' } } ).
                                     : 해당 컬랙션명의 document 중 '안녕'이란 단어를 가지고 있는 녀석들을 데이터타입 text를 사용한 index를 사용해서 검색함을 의미
@@ -337,6 +449,54 @@
                                let result = await db.collection('post').findOne({_id : new ObjectId(요청.query.id)});
                                응답.render('detail.ejs', { 상세글 : result })
                             });
+
+           7. (중요) 만들어진 search index server.js에서 활용하는 코드
+              : client.db('프로젝트명').collection('컬렉션명').aggregate()
+                 -> .find()와 유사.. BUT! ()안에 여러 조건식을 [{조건1}, {조건2} ... ] 형식으로 적용을 원할 때 사용
+
+                     ex) 이처럼 검색 조건식을 변수에 담아서 써도 아무 문제 없음 
+
+                         let 검색조건 = [
+                           {$search : {
+                             index : '사용할 인덱스 이름',
+                             text : { query : '검색어', path : '검색할 필드이름' }
+                           }},
+                           { $sort : { _id : 1 } },
+                           { $limit : 10 },
+                           { $project : { 제목 : 1, _id : 0 } }
+                         ] 
+                        
+                         db.collection().aggregate(검색조건).toArray()
+
+                 @ aggregate()에서 쓸 수 있는 대표적 연산자들 (= 찾아보면 더 있다 이런말..)
+                 
+                    1) $search : { index : '사용할 인덱스명', text : { query : '검색어', path : '검색할 field명' } }
+                        : search index를 이용해서 주어진 조건들을 활용한 검색을 수행 
+
+                    2) $sort : { field명(= column명) : 숫자 }
+                        : 검색 결과를 field명의 데이터를 기준으로 정렬 
+                           -> 안 쓰면? 기본적으로 score 순으로 정렬됨
+
+                               ex) { _id : 숫자}  -> 데이터들을 _id 순으로 정렬
+                            
+                    3) $limit : 숫자 
+                        : 검색 결과의 데이터 수를 숫자 개수 만큼만 제한 (= cursor객체변수.limit(숫자)) 
+                          
+                          ex) { $limit : 10 } -> 검색결과 중에 맨 위의 10개 document만 가져올 수 있습니다. 
+
+                    4) $skip : 숫자 
+                        : 검색 결과의 데이터 수를 숫자 개수 만큼 지나친 위치에서 받아오기 시작함 (= cursor객체변수.skip(숫자)) 
+                           -> 페이지네이션도 구현가능한 방법 중 하나
+
+                          ex) { $skip : 10 } -> 검색결과 중에 맨 위의 10개는 버리고 11번째부터 document부터 가져와 줌 
+
+                             -> 당연히 { $skip : 5 } 이거 연산자도 쓸 수 있습니다. 그래서 이런거 쓰면 
+
+                    5) $project : {필드명1 : 0 or 1, ... , 필드명n : 0 or 1}
+                        : 데이터 검색 결과 중에 1번에 해당하는 필드명의 데이터들만 가져오라고 걸러줄 수 있음
+                         
+                          ex) {title : 1, content : 0}  -> 이러면 title은 보여줌, content는 숨김이라는 뜻
+
 
       # express HTTP API와 연계된 MongoDB의 CRUD 작성법
          : express 라이브러리의 HTTP 메서드에 해당하는 함수에 parameter로 들어갈 URL과 그에 대응하는 CRUD를 담은 무명함수를 적어서 API로 완성함

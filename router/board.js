@@ -87,30 +87,80 @@ router.get('/time', async (요청, 응답) =>{
 //    (구현법 1) 
 //     MongoDB에서는 find()함수 내부에 $regex라는'정규식' 문법을 사용한 조건문으로 이를 구현이 가능함
 //      -> 하지만 사전에 DB에 정렬된 버전의 DB복사본(= collection)인 index를 구축하지 않고, 그냥 쓰면 느리니 간단한 기능을 제외하면 잘 쓰지 않음 
-app.get('/search/ver1', async (요청, 응답) => {
+router.get('/search/ver1', async (요청, 응답) => {
 
-    // $regex : 정규식을 사용한 조건식으로 
+    // $regex : 정규식과 연관된 연산자, 특정한 내용에 대해 정규식을 사용하여 검색함을 의미      
     let original = await db.collection('post').find( {title : {$regex : 요청.query.val} } );
     let result = await original.toArray();
     let stats = await original.explain('executionStats');
 
+    console.log(result);
     console.log(stats);
     응답.render('search.ejs', { 글목록 : result });
 }) 
 
 //    (구현법 2) 
 //     post라는 콜랙션에 데이터타입이 text인 index를 생성하고, 이를 바탕으로 검색어의 단어를 완벽히 가지고 있는 document(= data) 검색
-//       -> 데이터 타입이 숫자인 경우라면... $text : { $search : 내용 }이라는 예약어를 사용하지 않아도 됨
-app.get('/search/ver2', async (요청, 응답) => {
+//       -> 데이터 타입이 숫자만 사용되는 경우라면... $text : { $search : 내용 }이라는 예약어를 사용하지 않아도 됨
+//          (= 이런 경우, 숫자까지 text를 찾는 기준으로 찾아버려, 100% 일치하지 않으면 검색결과에서 배제함)
 
-    // $text 연산자를 이용해야 index를 활용해서 빠르게 찾아줍니다.
-    // (참고) 숫자를 찾는 경우엔 $text 필요없이 그냥 평소에 쓰던 문법 그대로 써도 index를 알아서 사용해줍니다.
+//   [mongoDB 한정 text index 단점]
+//    : 문자(= text)로 정렬한 index는 정확한 단어 검색에 밖에 사용이 불가능 (= 조사가 많이 붙는 언어들은 쓰기가 힘듦)
+//       -> index 제작시 데이터들을 띄어쓰기를 기준으로 독립된 단어들로 구분한 뒤, 검색어와 100% 일치하는 단어가 있는지 없는지 여부로 검색을 수행하기 때문
+//          -> full text index (= search index) 라는 개념이 필요
+router.get('/search/ver2', async (요청, 응답) => {
+
+    // $text   : text index와 연관된 연산자로, 해당 collection에서 필드를 text로 정렬한 index를 사용하겠다는 의미로 보통 $search와 같이 쓰임
+    // $search : $text와 함께 쓰이는 연산자로, 특정한 내용에 대해 해당 collection에서 필드를 text로 정렬한 index를 사용해 검색함을 의미     
     let original = await db.collection('post').find( { $text : { $search :  요청.query.val } } );
     let result = await original.toArray();
     let stats = await original.explain('executionStats');
 
+    console.log(result);
     console.log(stats);
     응답.render('search.ejs', { 글목록 : result });
+}) 
+
+
+router.get('/search/ver3/:page', async (요청, 응답) => {
+
+    let 데이터수 = 3;
+
+    // $search : { index : '사용할 인덱스명', text : { query : '검색어', path : '검색할 field명' } }
+    //  : search index를 이용해서 주어진 조건들을 활용한 검색을 수행 
+
+    // $sort : { field명(= column명) : 숫자 }
+    //  : 검색 결과를 field명의 데이터를 기준으로 정렬 
+    //     -> 안 쓰면? 기본적으로 score 순으로 정렬됨
+
+    // $limit : 숫자 
+    //  : 검색 결과의 데이터 수를 숫자 개수 만큼만 제한 (= cursor객체변수.limit(숫자)) 
+
+    // $skip : 숫자 
+    //  : 검색 결과의 데이터 수를 숫자 개수 만큼 지나친 위치에서 받아오기 시작함 (= cursor객체변수.skip(숫자)) 
+
+    // $project : {필드명1 : 0 or 1, ... , 필드명n : 0 or 1}
+    //  : 데이터 검색 결과 중에 1번에 해당하는 필드명의 데이터들만 가져오라고 걸러줄 수 있음
+    let 검색조건 = [
+        {$search : {index : 'title_index',
+                    text : { query : 요청.query.val, path : 'title' } } },
+        { $sort : { _id : 1 } },
+        { $skip : (요청.params.page - 1) * 데이터수 },
+        { $limit : 데이터수 },
+        { $project : { 제목 : 1, _id : 1 } }
+    ];
+
+    // client.db('프로젝트명').collection('컬렉션명').aggregate()
+    //  : find()와 유사.. BUT! ()안에 여러 조건식을 [{조건1}, {조건2} ... ] 형식으로 적용을 원할 때 사용
+    let original = await db.collection('post').aggregate(검색조건);
+    let result = await original.toArray();
+
+    // 날짜를 보내주기 위한 목적의 변수
+    let date = new Date();
+
+    console.log(result);
+
+    응답.render('search.ejs', { 글목록 : result , 날짜 : date, 페이지 : 요청.params.page, 검색어 : 요청.query.val });
 }) 
 
 
