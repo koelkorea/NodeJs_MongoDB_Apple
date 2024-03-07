@@ -87,16 +87,39 @@ router.get('/time', async (요청, 응답) =>{
 //    (구현법 1) 
 //     MongoDB에서는 find()함수 내부에 $regex라는'정규식' 문법을 사용한 조건문으로 이를 구현이 가능함
 //      -> 하지만 사전에 DB에 정렬된 버전의 DB복사본(= collection)인 index를 구축하지 않고, 그냥 쓰면 느리니 간단한 기능을 제외하면 잘 쓰지 않음 
-router.get('/search/ver1', async (요청, 응답) => {
+router.get('/search/ver1/:page', async (요청, 응답) => {
 
-    // $regex : 정규식과 연관된 연산자, 특정한 내용에 대해 정규식을 사용하여 검색함을 의미      
-    let original = await db.collection('post').find( {title : {$regex : 요청.query.val} } );
-    let result = await original.toArray();
+    let original; 
+
+    // 검색어 유무에 따른 null체크 조치
+    if(요청.query.val && 요청.query.val.trim() !== '') {
+
+        // $regex : 정규식과 연관된 연산자, 특정한 내용에 대해 정규식을 사용하여 검색함을 의미      
+        original = await db.collection('post').find( {title : {$regex : 요청.query.val} } );
+
+    }else{
+
+        original = await db.collection('post').find();
+    }
+
+    // original에 저장된 DB 데이터의 포인터 값이 나오면, 순차적으로 갯수와 데이터를 배열화시켜 저장 
+    let count = await original.count();
+    // let array = await original.toArray();
+    // let count = await array.length;
+    
+    // 해당 페이지에 표시할 데이터들만 뽑음
+    let result = await original.skip( (요청.params.page - 1) * 5 ).limit(5).toArray();
+
+    // 검색 결과 스팩 뽑기
     let stats = await original.explain('executionStats');
+
+    // 날짜를 보내주기 위한 목적의 변수
+    let date = new Date();
 
     console.log(result);
     console.log(stats);
-    응답.render('search.ejs', { 글목록 : result });
+
+    응답.render('search.ejs', { 글목록 : result, 날짜 : date, 갯수 : count, 페이지 : 요청.params.page, 검색어 : 요청.query.val });
 }) 
 
 //    (구현법 2) 
@@ -108,26 +131,80 @@ router.get('/search/ver1', async (요청, 응답) => {
 //    : 문자(= text)로 정렬한 index는 정확한 단어 검색에 밖에 사용이 불가능 (= 조사가 많이 붙는 언어들은 쓰기가 힘듦)
 //       -> index 제작시 데이터들을 띄어쓰기를 기준으로 독립된 단어들로 구분한 뒤, 검색어와 100% 일치하는 단어가 있는지 없는지 여부로 검색을 수행하기 때문
 //          -> full text index (= search index) 라는 개념이 필요
-router.get('/search/ver2', async (요청, 응답) => {
+router.get('/search/ver2/:page', async (요청, 응답) => {
 
-    // $text   : text index와 연관된 연산자로, 해당 collection에서 필드를 text로 정렬한 index를 사용하겠다는 의미로 보통 $search와 같이 쓰임
-    // $search : $text와 함께 쓰이는 연산자로, 특정한 내용에 대해 해당 collection에서 필드를 text로 정렬한 index를 사용해 검색함을 의미     
-    let original = await db.collection('post').find( { $text : { $search :  요청.query.val } } );
-    let result = await original.toArray();
+    let original; 
+
+    // 검색어 유무에 따른 null체크 조치
+    if(요청.query.val && 요청.query.val.trim() !== '') {
+        
+        // $text   : text index와 연관된 연산자로, 해당 collection에서 필드를 text로 정렬한 index를 사용하겠다는 의미로 보통 $search와 같이 쓰임
+        // $search : $text와 함께 쓰이는 연산자로, 특정한 내용에 대해 해당 collection에서 필드를 text로 정렬한 index를 사용해 검색함을 의미     
+        original = await db.collection('post').find( { $text : { $search :  요청.query.val } } );
+
+    }else{
+
+        original = await db.collection('post').find();
+    }
+
+    // original에 저장된 DB 데이터의 포인터 값이 나오면, 순차적으로 갯수와 데이터를 배열화시켜 저장 
+    let count = await original.count();
+    // let array = await original.toArray();
+    // let count = await array.length;
+    
+    // 해당 페이지에 표시할 데이터들만 뽑음
+    let result = await original.skip( (요청.params.page - 1) * 5 ).limit(5).toArray();
     let stats = await original.explain('executionStats');
 
-    console.log(result);
+    // 날짜를 보내주기 위한 목적의 변수
+    let date = new Date();
+
     console.log(stats);
-    응답.render('search.ejs', { 글목록 : result });
+    응답.render('search.ejs', { 글목록 : result, 날짜 : date, 갯수 : count, 페이지 : 요청.params.page, 검색어 : 요청.query.val });
 }) 
 
+//    (구현법 3)  <- 사실상 최종 완성본 
+//     search index라는 명칭의 full text index를 MongoDB의 collection을 골라 만들어 준 뒤, .aggregate() 함수를 통해 검색어에 대한 부분조건까지 검색 가능하게 구현
+//     (= search index를 생성시 어떤 언어를 기반으로 불용어구를 없애고 정렬을 적용했나에 따라서, 100% 같지 않더라도 부분적으로 일치하는 document(데이터)도 검색결과에 포함될 수 있음)
+//         -> 만약 검색어의 언어에 따라 다른 search index를 적용하게 하여, 다수의 언어를 대상으로 부분검색 기능을 만들고 싶으면, 조건문을 통해 다른 $search 연산자가 적용되게 만들면 됨
 
+//   [search index (= 타 DB에서 full text index) 개념]
+//    : MongoDB에서 문자를 100%가 아니라 부분적으로 포함될 경우라도 검색결과에 포함할 용도로 만들어진 index 
+//      (= 일반적으로 생각하는 검색기능에 부합할 수 있도록 제작된 정렬기준으로 제작된 index)
+//          -> search index 제작과정 및 동작 원리
+//              1. index를 만들 때 document(= 데이터)에 있는 특정 칼럼(= 필드)에 있는 문장들을 가져와서 조사, 부호 등 쓸데없는 불용어들을 다 제거
+//              2. 1번의 과정을 거쳐 등장한 단어들을 다 뽑아서 정렬한 목록 제작
+//                 (= 해당 단어들을 목록에서 쉽게 빠르게 찾을 수 있으며, 이를 3번과정에서 부분검색기능에 활용하도록 하는 포석)
+//              3. 2번의 목록에서 해당 단어들이 어떤 document에 등장했는지와 연관된 필드를 만들고, 해당 단어가 등장한 document id같은걸 함께 단어 옆에 기재
+//              4. 검색을 하면 해당 index 목록을 참고하여, 검색어에 따른 document를 찾아서 클라이언트 측에 제공
 router.get('/search/ver3/:page', async (요청, 응답) => {
 
-    let 데이터수 = 3;
+    // aggregate()의 parameter인 
+    let 검색조건 = [];
+
+    // page당 문서 갯수
+    let 데이터수 = 5;
+
+    // 배열.push({ $연산자 : 조건내용 }); 을 통해 aggregate()의 parameter로 넣을 객체배열의 내용을 변환 가능
+    //  -> 검색어가 있는 경우에만 $search 연산자를 새로운 조건객체로 배열에 추가하도록 함
+    //     (= (중요) 일단 객체배열의 각 객체요소로 들어가는 조건은 반드시 연산자와 내용이 들어가 있어야 하며, null이나 내용이 없으면 안 됨)
+    if(요청.query.val && 요청.query.val.trim() !== '') {
+
+        검색조건.push({
+            $search: { 
+                index: 'title_index', 
+                text: { 
+                    query: 요청.query.val, 
+                    path: 'title' 
+                } 
+            }
+        });
+        
+    }
 
     // $search : { index : '사용할 인덱스명', text : { query : '검색어', path : '검색할 field명' } }
-    //  : search index를 이용해서 주어진 조건들을 활용한 검색을 수행 
+    //  : search index를 이용해서 주어진 조건들을 활용한 검색을 수행
+    //    (= 사용하지 않으면, 검색어 없이 list를 가져오는 것과 같음) 
 
     // $sort : { field명(= column명) : 숫자 }
     //  : 검색 결과를 field명의 데이터를 기준으로 정렬 
@@ -141,26 +218,34 @@ router.get('/search/ver3/:page', async (요청, 응답) => {
 
     // $project : {필드명1 : 0 or 1, ... , 필드명n : 0 or 1}
     //  : 데이터 검색 결과 중에 1번에 해당하는 필드명의 데이터들만 가져오라고 걸러줄 수 있음
-    let 검색조건 = [
-        {$search : {index : 'title_index',
-                    text : { query : 요청.query.val, path : 'title' } } },
+
+    // 조건 연산자들로 이뤄진 JS변수는 엄연히 객체를 가진 '배열' 타입으로 이뤄져 있음
+    검색조건.push(
         { $sort : { _id : 1 } },
-        { $skip : (요청.params.page - 1) * 데이터수 },
-        { $limit : 데이터수 },
-        { $project : { 제목 : 1, _id : 1 } }
-    ];
+        // { $skip : (요청.params.page - 1) * 데이터수 },
+        // { $limit : 데이터수 },
+        { $project : { _id : 1, title : 1 , content : 1 } }
+    );
 
     // client.db('프로젝트명').collection('컬렉션명').aggregate()
     //  : find()와 유사.. BUT! ()안에 여러 조건식을 [{조건1}, {조건2} ... ] 형식으로 적용을 원할 때 사용
+    //     -> aggregate() 안의 [{조건1}, {조건2} ... ] 들은 JS변수에 객체배열의 값을 할당하여 쓸 수도 있음
     let original = await db.collection('post').aggregate(검색조건);
-    let result = await original.toArray();
+
+    // original에 저장된 DB 데이터의 포인터 값이 나오면, 순차적으로 갯수와 데이터를 배열화시켜 저장 
+    let array = await original.toArray();
+    let count = await array.length;
+
+    // 해당 페이지에 표시할 데이터들만 뽑음
+    let result = await array.slice((요청.params.page - 1) * 5, (요청.params.page - 1) * 5 + 5);
 
     // 날짜를 보내주기 위한 목적의 변수
     let date = new Date();
 
     console.log(result);
+    console.log(count);
 
-    응답.render('search.ejs', { 글목록 : result , 날짜 : date, 페이지 : 요청.params.page, 검색어 : 요청.query.val });
+    응답.render('search.ejs', { 글목록 : result , 날짜 : date, 갯수 : count, 페이지 : 요청.params.page, 검색어 : 요청.query.val });
 }) 
 
 
@@ -177,7 +262,13 @@ router.get('/list/paging/ver1/:page', async (요청, 응답) =>{
     // client.db('forum').collection('post').find().skip(숫자).limit(숫자).toArray();
     //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션의 복수 데이터를 'skip의 번호만큼 건너뛰고, limit의 번호만큼' 가져와서 객체배열 형태로 가져오는 메서드
     let original = await db.collection('post').find();
+
+    // original에 저장된 DB 데이터의 포인터 값이 나오면, 순차적으로 갯수와 데이터를 배열화시켜 저장 
     let count = await original.count();
+    // let array = await original.toArray();
+    // let count = await array.length;
+    
+    // 해당 페이지에 표시할 데이터들만 뽑음
     let result = await original.skip( (요청.params.page - 1) * 5 ).limit(5).toArray();
 
     // 날짜를 보내주기 위한 목적의 변수
@@ -187,7 +278,7 @@ router.get('/list/paging/ver1/:page', async (요청, 응답) =>{
     응답.render('list.ejs', { 글목록 : result, 날짜 : date, 갯수 : count, 페이지 : 요청.params.page });       
 })
 
-//    2) db에서 데이터를 가져오되, 가공은 웹서버에서 담당
+//    2) db에서 데이터를 가져오되, 가공은 웹서버 js배열 함수를 통해 자르기로 담당
 //        -> (장점) db서버에 부담이 줄어들게 됨
 //        -> (단점) mongoDB에서 쉽게 지원하는 기능을 굳이 웹서버 선에서 정리하기에, 혼잡하기도 하고 디버깅 같은게 좀 피곤하며.. 결정적으로 API호출때마다 DB를 들쑤시는건 똑같음
 router.get('/list/paging/ver2/:page', async (요청, 응답) =>{
@@ -197,8 +288,9 @@ router.get('/list/paging/ver2/:page', async (요청, 응답) =>{
     let original = await db.collection('post').find();
 
     // original에 저장된 DB 데이터의 포인터 값이 나오면, 순차적으로 갯수와 데이터를 배열화시켜 저장 
-    let count = await original.count();
+    // let count = await original.count();
     let array = await original.toArray();
+    let count = await array.length;
 
     // js배열.slice(숫자1, 숫자2)
     //  : 원본 js배열에 변화를 가하지 않는 함수형 프로그래밍 방식의 함수로, 대상 배열의 숫자번째 index부터 숫자2만큼의 요소를 가져와서 결과값 js배열로 반환
@@ -305,16 +397,16 @@ router.post('/add', async (요청, 응답)=>{
 
                 if (err) return 응답.send('에러남')
 
-                if (!요청.file) {
-                    return 응답.status(400).send('파일이 업로드되지 않았습니다.');
-                }
+                // if (!요청.file) {
+                //     return 응답.status(400).send('파일이 업로드되지 않았습니다.');
+                // }
 
                 // client.db('forum').collection('post').insertOne({title : 요청.body.title, content : 요청.body.content});
                 //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션에 js객체 형식으로 적힌 {}안의 데이터를 기입
                 await db.collection('post').insertOne({
                     title : 요청.body.title,
                     content : 요청.body.content,
-                    img : 요청.file.location
+                    img : !요청.file ? '' : 요청.file.location
                 })
 
                 // 응답parameter명.redirect('/list/paging/ver1/1');

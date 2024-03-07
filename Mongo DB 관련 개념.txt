@@ -208,7 +208,7 @@
                   - analyzer : lucene.korean
                   - dynamic mapping : off
                      -> lucene.korean
-                         : 각 document의 필드의 이터 분석시 lucene이라는 라이브러리를 이용해서 '한국어' 기준 쓸데없는 불용어나 조사를 제거해주라고 설정
+                         : 각 document의 필드의 있던 document 분석시 lucene이라는 라이브러리를 이용해서 '한국어' 기준 쓸데없는 불용어나 조사를 제거해주라고 설정
                      -> dynamic mapping 
                          : 각 document에 있는 모든 필드들을 indexing할 것인지 결정 
                            (off를 하면? 5번의 field mapping을 직접 작성 = index 적용 필드를 직접 설정한다는 의미)
@@ -226,48 +226,74 @@
               : client.db('프로젝트명').collection('컬렉션명').aggregate()
                  -> .find()와 유사.. BUT! ()안에 여러 조건식을 [{조건1}, {조건2} ... ] 형식으로 적용을 원할 때 사용
 
-                     ex) 이처럼 검색 조건식을 변수에 담아서 써도 아무 문제 없음 
-
-                         let 검색조건 = [
-                           {$search : {
-                             index : '사용할 인덱스 이름',
-                             text : { query : '검색어', path : '검색할 필드이름' }
-                           }},
-                           { $sort : { _id : 1 } },
-                           { $limit : 10 },
-                           { $project : { 제목 : 1, _id : 0 } }
-                         ] 
-                        
-                         db.collection().aggregate(검색조건).toArray()
-
                  [참고내용] 
-                  aggregate()에서 쓸 수 있는 대표적 연산자들 (= 찾아보면 더 있다 이런말..)
-                 
-                    1) $search : { index : '사용할 인덱스명', text : { query : '검색어', path : '검색할 field명' } }
-                        : search index를 이용해서 주어진 조건들을 활용한 검색을 수행 
 
-                    2) $sort : { field명(= column명) : 숫자 }
-                        : 검색 결과를 field명의 데이터를 기준으로 정렬 
-                           -> 안 쓰면? 기본적으로 score 순으로 정렬됨
+                  1.(중요!) AggregationCursor 개념 ( <-> cursor)
+                     : aggregate() 함수가 반환하는 return값으로 cursor와는 호환되지 않는 고유한 타입의 객체
+                       (= 다른 CRUD 함수들이 체이닝할 수 있는 count() 같은 몇몇 함수들이 호환되지 않음!!)
+                           -> count 같은 경우는 toArray()를 통해 객체배열로 변환한 뒤, length 멤버 변수를 통해 구함
 
-                               ex) { _id : 숫자}  -> 데이터들을 _id 순으로 정렬
-                            
-                    3) $limit : 숫자 
-                        : 검색 결과의 데이터 수를 숫자 개수 만큼만 제한 (= cursor객체변수.limit(숫자)) 
-                          
-                          ex) { $limit : 10 } -> 검색결과 중에 맨 위의 10개 document만 가져올 수 있습니다. 
+                  1. aggregate() 안의 [{조건1}, {조건2} ... ] 으로 들어가는 객체배열의 각 객체요소는 반드시 연산자가 들어가 있어야 함
+                      -> 3항연산자를 통해서 검색어가 NULL이나 ''인 경우를 [{}]안에서 쓸 수 없음 
 
-                    4) $skip : 숫자 
-                        : 검색 결과의 데이터 수를 숫자 개수 만큼 지나친 위치에서 받아오기 시작함 (= cursor객체변수.skip(숫자)) 
-                           -> 페이지네이션도 구현가능한 방법 중 하나
-
-                          ex) { $skip : 10 } -> 검색결과 중에 맨 위의 10개는 버리고 11번째부터 document부터 가져와 줌 
-
-                    5) $project : {필드명1 : 0 or 1, ... , 필드명n : 0 or 1}
-                        : 데이터 검색 결과 중에 1번에 해당하는 필드명의 데이터들만 가져오라고 걸러줄 수 있음
-                         
-                          ex) {title : 1, content : 0}  -> 이러면 title은 보여줌, content는 숨김이라는 뜻
+                  2 검색파이프라인
+                     : aggregate() 안의 [{조건1}, {조건2} ... ] 으로 들어가는 객체배열
+                        -> 검색파이프라인 특성
+                            a. 검색파이프라인 내부에 존재하는 연산자 조건을 담은 객체 {} 안에 반드시 연산자가 들어가 있어야 함
+                               (= 3항연산자를 통해서 검색어가 NULL이나 ''인 경우를 [{}]안에서 쓸 수 없음)
   
+                            b. 검색파이프라인의 [{조건1}, {조건2} ... ] 들은 JS변수에 객체배열의 값을 할당하여 쓸 수도 있음
+  
+                               ex) 이처럼 검색 조건식을 변수에 담아서 써도 아무 문제 없음 
+                
+                                   let 검색조건 = [
+                                     {$search : {
+                                       index : '사용할 인덱스 이름',
+                                       text : { query : '검색어', path : '검색할 필드이름' }
+                                     }},
+                                     { $sort : { _id : 1 } },
+                                     { $limit : 10 },
+                                     { $project : { 제목 : 1, _id : 0 } }
+                                   ] 
+                  
+                                   db.collection().aggregate(검색조건).toArray()
+  
+                            c. (2번의 특성을 이용해서) 조건 연산자들로 이뤄진 JS변수는 엄연히 '배열' 타입으로 이뤄져 있음
+                                 -> 배열.push({ $연산자 : 조건내용 }); 을 통해 aggregate()의 parameter로 넣을 객체배열의 내용을 변환 가능
+  
+
+                  3. aggregate()에서 쓸 수 있는 대표적 연산자들 (= 찾아보면 더 있다 이런말..)
+                 
+                     1) $search : { index : '사용할 인덱스명', text : { query : '검색어', path : '검색할 field명' } }
+                         : search index를 이용해서 주어진 조건들을 활용한 검색을 수행 
+                           (= 사용하지 않으면, 검색어 없이 list를 가져오는 것과 같음)
+                               -> (주의) 생각보다 쓰기전에 지켜야 할게 많은 녀석이니 주의가 필요
+                                   a. 검색어를 기입하는 text 요소객체의 query 멤버변수에는 ''나 null은 허용되지 않음
+                                   b. search는 쓸거면 무조건 파이프라인 배열의 1번째 요소객체가 되어야 함
+
+ 
+                     2) $sort : { field명(= column명) : 숫자 }
+                         : 검색 결과를 field명의 데이터를 기준으로 정렬 
+                            -> 안 쓰면? 기본적으로 score 순으로 정렬됨
+ 
+                                ex) { _id : 숫자}  -> 데이터들을 _id 순으로 정렬
+                             
+                     3) $limit : 숫자 
+                         : 검색 결과의 데이터 수를 숫자 개수 만큼만 제한 (= cursor객체변수.limit(숫자)) 
+                           
+                           ex) { $limit : 10 } -> 검색결과 중에 맨 위의 10개 document만 가져올 수 있습니다. 
+ 
+                     4) $skip : 숫자 
+                         : 검색 결과의 데이터 수를 숫자 개수 만큼 지나친 위치에서 받아오기 시작함 (= cursor객체변수.skip(숫자)) 
+                            -> 페이지네이션도 구현가능한 방법 중 하나
+ 
+                           ex) { $skip : 10 } -> 검색결과 중에 맨 위의 10개는 버리고 11번째부터 document부터 가져와 줌 
+ 
+                     5) $project : {필드명1 : 0 or 1, ... , 필드명n : 0 or 1}
+                         : 데이터 검색 결과 중에 1번에 해당하는 필드명의 데이터들만 가져오라고 걸러줄 수 있음
+                          
+                           ex) {title : 1, content : 0}  -> 이러면 title은 보여줌, content는 숨김이라는 뜻
+
 
       # MongoDB와 웹서버 연결하기
          1. npm install mongodb@5 를 입력하여, mongodb 라이브러리 설치
@@ -383,6 +409,17 @@
 
                     1) cursor객체변수.toArray()
                         : MongoDB내부에서 제공하는 'Cursor객체(= db 포인터) -> JS object배열'로 변환시켜 실체화된 데이터로 다룰 수 있게 하는 메서드
+                           -> (중요) 일단 .toArray()를 통해 'cursor객체변수'의 내용 -> '배열' 로 변환하였으면, 그 원본인 커서를 가공한뒤 toArray() 함수로 사용할 수 없음
+                               -> toArray() 메서드를 사용하여 어떤 커서변수를 배열로 변환할 때, 내부적으로 원본 커서변수를 사용하기에 그 원본 커서변수는 이미 사용 중이므로 다른 메서드를 호출할 수 없음
+                                  (= cursor객체변수와 toArray()를 통한 document의 js객체배열은 일종의 의존성 관계에 놓여있다고 보면 됨)
+
+                                  ex) (중요!) result가 쓰려는 커서변수 original은 이미 array가 사용 중인 상황이라, 새롭게 초기화하는게 불가능함
+                                       -> result는 original과 같은 내용의 crud 함수를 다시 실행해서 아직 toArray()를 통해 내부적으로 커서변수가 존재하지 않는 새로운 커서변수를 사용해야 함
+                                  
+                                      let original = await db.collection('post').find();
+   
+                                      let array = await original.toArray();
+                                      let result = await original.skip( (요청.params.page - 1) * 5 ).limit(5).toArray();
 
                     2) cursor객체변수.count()
                         : 해당 cursor가 가르키는 위치에 존재하는 데이터의 수를 집계함
@@ -454,48 +491,69 @@
               : client.db('프로젝트명').collection('컬렉션명').aggregate()
                  -> .find()와 유사.. BUT! ()안에 여러 조건식을 [{조건1}, {조건2} ... ] 형식으로 적용을 원할 때 사용
 
-                     ex) 이처럼 검색 조건식을 변수에 담아서 써도 아무 문제 없음 
+                @ (중요!) AggregationCursor 개념 ( <-> cursor)
+                   : aggregate() 함수가 반환하는 return값으로 cursor와는 호환되지 않는 고유한 타입의 객체
+                     (= 다른 CRUD 함수들이 체이닝할 수 있는 count() 같은 몇몇 함수들이 호환되지 않음!!)
+                         -> count 같은 경우는 toArray()를 통해 객체배열로 변환한 뒤, length 멤버 변수를 통해 구함
+                     
+                @ 검색파이프라인
+                   : aggregate() 안의 [{조건1}, {조건2} ... ] 으로 들어가는 객체배열
+                      -> 검색파이프라인 특성
+                          a. 검색파이프라인 내부에 존재하는 연산자 조건을 담은 객체 {} 안에 반드시 연산자가 들어가 있어야 함
+                             (= 3항연산자를 통해서 검색어가 NULL이나 ''인 경우를 [{}]안에서 쓸 수 없음)
 
-                         let 검색조건 = [
-                           {$search : {
-                             index : '사용할 인덱스 이름',
-                             text : { query : '검색어', path : '검색할 필드이름' }
-                           }},
-                           { $sort : { _id : 1 } },
-                           { $limit : 10 },
-                           { $project : { 제목 : 1, _id : 0 } }
-                         ] 
-                        
-                         db.collection().aggregate(검색조건).toArray()
+                          b. 검색파이프라인의 [{조건1}, {조건2} ... ] 들은 JS변수에 객체배열의 값을 할당하여 쓸 수도 있음
 
-                 @ aggregate()에서 쓸 수 있는 대표적 연산자들 (= 찾아보면 더 있다 이런말..)
-                 
-                    1) $search : { index : '사용할 인덱스명', text : { query : '검색어', path : '검색할 field명' } }
-                        : search index를 이용해서 주어진 조건들을 활용한 검색을 수행 
+                             ex) 이처럼 검색 조건식을 변수에 담아서 써도 아무 문제 없음 
+              
+                                 let 검색조건 = [
+                                   {$search : {
+                                     index : '사용할 인덱스 이름',
+                                     text : { query : '검색어', path : '검색할 필드이름' }
+                                   }},
+                                   { $sort : { _id : 1 } },
+                                   { $limit : 10 },
+                                   { $project : { 제목 : 1, _id : 0 } }
+                                 ] 
+                
+                                 db.collection().aggregate(검색조건).toArray()
 
-                    2) $sort : { field명(= column명) : 숫자 }
-                        : 검색 결과를 field명의 데이터를 기준으로 정렬 
-                           -> 안 쓰면? 기본적으로 score 순으로 정렬됨
+                          c. (2번의 특성을 이용해서) 조건 연산자들로 이뤄진 JS변수는 엄연히 '배열' 타입으로 이뤄져 있음
+                               -> 배열.push({ $연산자 : 조건내용 }); 을 통해 aggregate()의 parameter로 넣을 객체배열의 내용을 변환 가능
 
-                               ex) { _id : 숫자}  -> 데이터들을 _id 순으로 정렬
-                            
-                    3) $limit : 숫자 
-                        : 검색 결과의 데이터 수를 숫자 개수 만큼만 제한 (= cursor객체변수.limit(숫자)) 
-                          
-                          ex) { $limit : 10 } -> 검색결과 중에 맨 위의 10개 document만 가져올 수 있습니다. 
 
-                    4) $skip : 숫자 
-                        : 검색 결과의 데이터 수를 숫자 개수 만큼 지나친 위치에서 받아오기 시작함 (= cursor객체변수.skip(숫자)) 
-                           -> 페이지네이션도 구현가능한 방법 중 하나
+                @ aggregate()에서 쓸 수 있는 대표적 연산자들 (= 찾아보면 더 있다 이런말..)
+                
+                   1) $search : { index : '사용할 인덱스명', text : { query : '검색어', path : '검색할 field명' } }
+                       : search index를 이용해서 주어진 조건들을 활용한 검색을 수행 
+                         (= 사용하지 않으면, 검색어 없이 list를 가져오는 것과 같음)
+                             -> (주의) 생각보다 쓰기전에 지켜야 할게 많은 녀석이니 주의가 필요
+                                 a. 검색어를 기입하는 text 요소객체의 query 멤버변수에는 ''나 null은 허용되지 않음
+                                 b. search는 쓸거면 무조건 파이프라인 배열의 1번째 요소객체가 되어야 함
 
-                          ex) { $skip : 10 } -> 검색결과 중에 맨 위의 10개는 버리고 11번째부터 document부터 가져와 줌 
+                   2) $sort : { field명(= column명) : 숫자 }
+                       : 검색 결과를 field명의 데이터를 기준으로 정렬 
+                          -> 안 쓰면? 기본적으로 score 순으로 정렬됨
 
-                             -> 당연히 { $skip : 5 } 이거 연산자도 쓸 수 있습니다. 그래서 이런거 쓰면 
-
-                    5) $project : {필드명1 : 0 or 1, ... , 필드명n : 0 or 1}
-                        : 데이터 검색 결과 중에 1번에 해당하는 필드명의 데이터들만 가져오라고 걸러줄 수 있음
+                              ex) { _id : 숫자}  -> 데이터들을 _id 순으로 정렬
+                           
+                   3) $limit : 숫자 
+                       : 검색 결과의 데이터 수를 숫자 개수 만큼만 제한 (= cursor객체변수.limit(숫자)) 
                          
-                          ex) {title : 1, content : 0}  -> 이러면 title은 보여줌, content는 숨김이라는 뜻
+                         ex) { $limit : 10 } -> 검색결과 중에 맨 위의 10개 document만 가져올 수 있습니다. 
+
+                   4) $skip : 숫자 
+                       : 검색 결과의 데이터 수를 숫자 개수 만큼 지나친 위치에서 받아오기 시작함 (= cursor객체변수.skip(숫자)) 
+                          -> 페이지네이션도 구현가능한 방법 중 하나
+
+                         ex) { $skip : 10 } -> 검색결과 중에 맨 위의 10개는 버리고 11번째부터 document부터 가져와 줌 
+
+                            -> 당연히 { $skip : 5 } 이거 연산자도 쓸 수 있습니다. 그래서 이런거 쓰면 
+
+                   5) $project : {필드명1 : 0 or 1, ... , 필드명n : 0 or 1}
+                       : 데이터 검색 결과 중에 1번에 해당하는 필드명의 데이터들만 가져오라고 걸러줄 수 있음
+                        
+                         ex) {title : 1, content : 0}  -> 이러면 title은 보여줌, content는 숨김이라는 뜻
 
 
       # express HTTP API와 연계된 MongoDB의 CRUD 작성법

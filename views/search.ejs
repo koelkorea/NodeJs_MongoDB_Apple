@@ -38,11 +38,59 @@
         
     <% } %> 
 
-
-        <!-- 동기적 이전 다음 구현을 위함-->
+        <!-- 정규식 -->
         <div class="white-box">
-            <a href="/board/search/ver3/<%= parseInt(페이지) - 1 %>?val=<%= 검색어 %>">이전(db 페이징 처리)</a>
-            <a href="/board/search/ver3/<%= parseInt(페이지) + 1 %>?val=<%= 검색어 %>">다음(db 페이징 처리)</a>
+            [정규식]</br>
+            <% if ( ( (페이지 * 1) != 1 ) || (갯수 == 0) ) { %>
+                <a href="/board/search/ver1/<%= parseInt(페이지) - 1 %>?val=<%= 검색어 %>">이전(정규식)</a>
+            <% } %> 
+    
+            <% for (var j = 1; j <= Math.trunc( (갯수 - 1) / 5) + 1; j++){ %>
+                <a href="/board/search/ver1/<%=j%>?val=<%= 검색어 %>"> <%= j %> </a>
+            <% } %> 
+    
+            <% if ( ( (페이지 * 1) != Math.trunc( (갯수 - 1) / 5) + 1 ) || (갯수 == 0) ) { %>
+                <a href="/board/search/ver1/<%= parseInt(페이지) + 1 %>?val=<%= 검색어 %>">다음(정규식)</a>
+            <% } %> 
+    
+        </div>
+    
+        </br>
+
+        <!-- text index -->
+        <div class="white-box">
+            [text index]</br>
+            <% if ( ( (페이지 * 1) != 1 ) || (갯수 == 0) ) { %>
+                <a href="/board/search/ver1/<%= parseInt(페이지) - 1 %>?val=<%= 검색어 %>">이전(text index)</a>
+            <% } %> 
+    
+            <% for (var j = 1; j <= Math.trunc( (갯수 - 1) / 5) + 1; j++){ %>
+                <a href="/board/search/ver1/<%=j%>?val=<%= 검색어 %>"> <%= j %> </a>
+            <% } %> 
+    
+            <% if ( ( (페이지 * 1) != Math.trunc( (갯수 - 1) / 5) + 1 ) || (갯수 == 0) ) { %>
+                <a href="/board/search/ver1/<%= parseInt(페이지) + 1 %>?val=<%= 검색어 %>">다음(text index)</a>
+            <% } %> 
+    
+        </div>
+    
+        </br>
+
+        <!-- search index -->
+        <div class="white-box">
+            [search index]</br>
+            <% if ( (페이지 * 1) != 1 ){ %>
+                <a href="/board/search/ver3/<%= parseInt(페이지) - 1 %>?val=<%= 검색어 %>">이전(search index)</a>
+            <% } %> 
+    
+            <% for (var j = 1; j <= Math.trunc( (갯수 - 1) / 5) + 1; j++){ %>
+                <a href="/board/search/ver3/<%=j%>?val=<%= 검색어 %>"> <%= j %> </a>
+            <% } %> 
+    
+            <% if ( (페이지 * 1) != Math.trunc( (갯수 - 1) / 5) + 1 ){ %>
+                <a href="/board/search/ver3/<%= parseInt(페이지) + 1 %>?val=<%= 검색어 %>">다음(search index)</a>
+            <% } %> 
+
         </div>
 
     </div> 
@@ -59,7 +107,7 @@
         //   -> 이벤트 리스너를 통해 변경도 가능함
         //   -> (중요) [단점1] 이를 통해서는 GET방식의 호출 밖에 할 수 없음
         //   -> (중요) [단점2] 반드시 새로고침이 일어나는 방식임
-        location.href = '/board/search/ver1?val=' + 입력한거
+        location.href = '/board/search/ver1/1?val=' + 입력한거
     })
 
     // 리스트 검색기능 구현 : text기준 index 사용
@@ -71,7 +119,7 @@
         //   -> 이벤트 리스너를 통해 변경도 가능함
         //   -> (중요) [단점1] 이를 통해서는 GET방식의 호출 밖에 할 수 없음
         //   -> (중요) [단점2] 반드시 새로고침이 일어나는 방식임
-        location.href = '/board/search/ver2?val=' + 입력한거
+        location.href = '/board/search/ver2/1?val=' + 입력한거
     })
 
     document.querySelector('.search_index').addEventListener('click', function(){

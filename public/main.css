@@ -14,6 +14,10 @@ a {
     background : white;
 }
 
+.nav-structure .nav a:link, .nav-structure .nav a:visited {
+    color : rgba(14, 12, 12, 0.692);
+}
+
 .nav {
     display: flex;
     padding: 15px;

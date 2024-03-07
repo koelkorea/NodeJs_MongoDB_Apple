@@ -7,6 +7,10 @@
     <title>Document</title>
 </head>
 <body>
+
+    <!-- include(파일위치)를 통해, js를 붙일 수 있음 -->
+    <%- include('nav.ejs') %>
+    
     <div class="detail-bg">
         <h4><%= 상세글.title %></h4>
         <p><%= 상세글.content %></p>

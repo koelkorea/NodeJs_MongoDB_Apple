@@ -45,11 +45,11 @@
             <a href="/board/list/paging/ver1/<%= parseInt(페이지) - 1 %>">이전(db 페이징 처리)</a>
         <% } %> 
 
-        <% for (var j = 1; j <= Math.trunc(갯수 / 5) + 1; j++){ %>
+        <% for (var j = 1; j <= Math.trunc( (갯수 - 1) / 5) + 1; j++){ %>
             <a href="/board/list/paging/ver1/<%=j%>"> <%= j %> </a>
         <% } %> 
 
-        <% if ( ( (페이지 * 1) != Math.trunc(갯수 / 5) + 1 ) || (갯수 == 0) ) { %>
+        <% if ( ( (페이지 * 1) != Math.trunc( (갯수 - 1) / 5) + 1 ) || (갯수 == 0) ) { %>
             <a href="/board/list/paging/ver1/<%= parseInt(페이지) + 1 %>">다음(db 페이징 처리)</a>
         <% } %> 
 
@@ -65,11 +65,11 @@
             <a href="/board/list/paging/ver2/<%= parseInt(페이지) - 1 %>">이전(웹서버 페이징 처리)</a>
         <% } %> 
 
-        <% for (var j = 1; j <= Math.trunc(갯수 / 5) + 1; j++){ %>
+        <% for (var j = 1; j <= Math.trunc( (갯수 - 1) / 5) + 1; j++){ %>
             <a href="/board/list/paging/ver2/<%=j%>"> <%= j %> </a>
         <% } %> 
 
-        <% if ( (페이지 * 1) != Math.trunc(갯수 / 5) + 1 ){ %>
+        <% if ( (페이지 * 1) != Math.trunc( (갯수 - 1) / 5) + 1 ){ %>
             <a href="/board/list/paging/ver2/<%= parseInt(페이지) + 1 %>">다음(웹서버 페이징 처리)</a>
         <% } %> 
 
@@ -91,7 +91,7 @@
         //   -> 이벤트 리스너를 통해 변경도 가능함
         //   -> (중요) [단점1] 이를 통해서는 GET방식의 호출 밖에 할 수 없음
         //   -> (중요) [단점2] 반드시 새로고침이 일어나는 방식임
-        location.href = '/board/search/ver1?val=' + 입력한거
+        location.href = '/board/search/ver1/1?val=' + 입력한거
     })
 
     // 리스트 검색기능 구현 : text기준 index 사용
@@ -103,7 +103,7 @@
         //   -> 이벤트 리스너를 통해 변경도 가능함
         //   -> (중요) [단점1] 이를 통해서는 GET방식의 호출 밖에 할 수 없음
         //   -> (중요) [단점2] 반드시 새로고침이 일어나는 방식임
-        location.href = '/board/search/ver2?val=' + 입력한거
+        location.href = '/board/search/ver2/1?val=' + 입력한거
     })
 
     document.querySelector('.search_index').addEventListener('click', function(){

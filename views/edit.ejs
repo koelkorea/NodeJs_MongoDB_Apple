@@ -8,6 +8,9 @@
 </head>
 <body class="grey-bg">
 
+    <!-- include(파일위치)를 통해, js를 붙일 수 있음 -->
+    <%- include('nav.ejs') %>
+
     <!-- 수정 화면 -->
     <form class="form-box" action="/board/revise/<%= 기존글._id %>" method="POST">
         <h4>글쓰기</h4>

@@ -8,6 +8,9 @@
 </head>
 <body class="grey-bg">
     
+    <!-- include(파일위치)를 통해, js를 붙일 수 있음 -->
+    <%- include('nav.ejs') %>
+    
     <form class="form-box" action="/login" method="POST">
         <h4>로그인</h4>
         <input name="username">
