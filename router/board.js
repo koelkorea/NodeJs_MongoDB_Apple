@@ -104,8 +104,6 @@ router.get('/search/ver1/:page', async (요청, 응답) => {
 
     // original에 저장된 DB 데이터의 포인터 값이 나오면, 순차적으로 갯수와 데이터를 배열화시켜 저장 
     let count = await original.count();
-    // let array = await original.toArray();
-    // let count = await array.length;
     
     // 해당 페이지에 표시할 데이터들만 뽑음
     let result = await original.skip( (요청.params.page - 1) * 5 ).limit(5).toArray();
@@ -113,11 +111,10 @@ router.get('/search/ver1/:page', async (요청, 응답) => {
     // 검색 결과 스팩 뽑기
     let stats = await original.explain('executionStats');
 
+    console.log(stats);
+
     // 날짜를 보내주기 위한 목적의 변수
     let date = new Date();
-
-    console.log(result);
-    console.log(stats);
 
     응답.render('search.ejs', { 글목록 : result, 날짜 : date, 갯수 : count, 페이지 : 요청.params.page, 검색어 : 요청.query.val });
 }) 
@@ -149,17 +146,16 @@ router.get('/search/ver2/:page', async (요청, 응답) => {
 
     // original에 저장된 DB 데이터의 포인터 값이 나오면, 순차적으로 갯수와 데이터를 배열화시켜 저장 
     let count = await original.count();
-    // let array = await original.toArray();
-    // let count = await array.length;
     
     // 해당 페이지에 표시할 데이터들만 뽑음
     let result = await original.skip( (요청.params.page - 1) * 5 ).limit(5).toArray();
     let stats = await original.explain('executionStats');
 
+    console.log(stats);
+
     // 날짜를 보내주기 위한 목적의 변수
     let date = new Date();
 
-    console.log(stats);
     응답.render('search.ejs', { 글목록 : result, 날짜 : date, 갯수 : count, 페이지 : 요청.params.page, 검색어 : 요청.query.val });
 }) 
 
@@ -179,7 +175,7 @@ router.get('/search/ver2/:page', async (요청, 응답) => {
 //              4. 검색을 하면 해당 index 목록을 참고하여, 검색어에 따른 document를 찾아서 클라이언트 측에 제공
 router.get('/search/ver3/:page', async (요청, 응답) => {
 
-    // aggregate()의 parameter인 
+    // aggregate()의 parameter인 검색 파이프라인을 담을 용도의 JS array타입
     let 검색조건 = [];
 
     // page당 문서 갯수
@@ -187,7 +183,8 @@ router.get('/search/ver3/:page', async (요청, 응답) => {
 
     // 배열.push({ $연산자 : 조건내용 }); 을 통해 aggregate()의 parameter로 넣을 객체배열의 내용을 변환 가능
     //  -> 검색어가 있는 경우에만 $search 연산자를 새로운 조건객체로 배열에 추가하도록 함
-    //     (= (중요) 일단 객체배열의 각 객체요소로 들어가는 조건은 반드시 연산자와 내용이 들어가 있어야 하며, null이나 내용이 없으면 안 됨)
+    //     (= (중요) 검색파이프라인 내부에 존재하는 연산자 조건을 담은 객체 {} 안에 반드시 연산자가 들어가 있어야 함)
+    //          -> 3항연산자를 통해서 검색어가 NULL이나 ''인 경우를 [{}]안에서 쓸 수 없음
     if(요청.query.val && 요청.query.val.trim() !== '') {
 
         검색조건.push({
@@ -201,6 +198,8 @@ router.get('/search/ver3/:page', async (요청, 응답) => {
         });
         
     }
+
+    // aggregate()에서 쓸 수 있는 대표적 연산자들 (= 찾아보면 더 있다 이런말..)
 
     // $search : { index : '사용할 인덱스명', text : { query : '검색어', path : '검색할 field명' } }
     //  : search index를 이용해서 주어진 조건들을 활용한 검색을 수행
@@ -220,6 +219,9 @@ router.get('/search/ver3/:page', async (요청, 응답) => {
     //  : 데이터 검색 결과 중에 1번에 해당하는 필드명의 데이터들만 가져오라고 걸러줄 수 있음
 
     // 조건 연산자들로 이뤄진 JS변수는 엄연히 객체를 가진 '배열' 타입으로 이뤄져 있음
+    //  -> skip, limit을 검색조건에서 뺀 이유?
+    //      : 검색된 document들의 총 갯수를 온전히 뽑아내야 pagenation 구성이 가능하기 때문...
+    //        (= skip, limit등을 통해, 검색결과 자체를 손보면, pagenation 구현에 필요한 타 페이지의 데이터를 알아낼 발법이 없음) 
     검색조건.push(
         { $sort : { _id : 1 } },
         // { $skip : (요청.params.page - 1) * 데이터수 },
@@ -227,12 +229,19 @@ router.get('/search/ver3/:page', async (요청, 응답) => {
         { $project : { _id : 1, title : 1 , content : 1 } }
     );
 
-    // client.db('프로젝트명').collection('컬렉션명').aggregate()
-    //  : find()와 유사.. BUT! ()안에 여러 조건식을 [{조건1}, {조건2} ... ] 형식으로 적용을 원할 때 사용
-    //     -> aggregate() 안의 [{조건1}, {조건2} ... ] 들은 JS변수에 객체배열의 값을 할당하여 쓸 수도 있음
+    // (중요) 만들어진 search index server.js에서 활용하는 코드
+    //   : client.db('프로젝트명').collection('컬렉션명').aggregate()
+    //     -> .find()와 유사.. BUT! ()안에 여러 조건식을 [{조건1}, {조건2} ... ] 형식으로 적용을 원할 때 사용
     let original = await db.collection('post').aggregate(검색조건);
 
+    // (중요!) AggregationCursor 개념 ( <-> cursor)
+    //   : aggregate() 함수가 반환하는 return값으로 cursor와는 호환되지 않는 고유한 타입의 객체
+    //     (= 다른 CRUD 함수들이 체이닝할 수 있는 count() 같은 몇몇 함수들이 호환되지 않음!!)
+
     // original에 저장된 DB 데이터의 포인터 값이 나오면, 순차적으로 갯수와 데이터를 배열화시켜 저장 
+    //  -> curson변수.count()를 사용하지 않는 이유?
+    //      : aggregate() 함수의 반환값이 AggregationCursor 타입인데, 이는 일반 Cursor 타입과 완전히 호환되는 타입변수가 아니라 count()함수를 체이닝 할 수 없기 때문
+    //         -> count 같은 경우는 toArray()를 통해 객체배열로 변환한 뒤, length 멤버 변수를 통해 구함
     let array = await original.toArray();
     let count = await array.length;
 
@@ -241,9 +250,6 @@ router.get('/search/ver3/:page', async (요청, 응답) => {
 
     // 날짜를 보내주기 위한 목적의 변수
     let date = new Date();
-
-    console.log(result);
-    console.log(count);
 
     응답.render('search.ejs', { 글목록 : result , 날짜 : date, 갯수 : count, 페이지 : 요청.params.page, 검색어 : 요청.query.val });
 }) 
@@ -370,6 +376,12 @@ router.get('/write', (요청, 응답)=>{
     응답.render('write.ejs');
 }); 
 
+// 도메인/write라는 url에 GET 형식의 요청이 들어오면 입력페이지 보여주는 API
+router.get('/write/multiIMG', (요청, 응답)=>{
+    응답.render('write2.ejs');
+}); 
+
+
 // upload.single()
 //  : 단, 1개의 이미지만 업로드 하고 하고 싶을 경우 사용
 //     -> url정보는 요청 객체의 file 멤버객체의 location에 저장되어 있음
@@ -406,6 +418,8 @@ router.post('/add', async (요청, 응답)=>{
                 await db.collection('post').insertOne({
                     title : 요청.body.title,
                     content : 요청.body.content,
+                    user : 요청.user._id,
+                    username : 요청.user.username,
                     img : !요청.file ? '' : 요청.file.location
                 })
 
@@ -421,12 +435,6 @@ router.post('/add', async (요청, 응답)=>{
     } 
 
 });
-
-// 도메인/write라는 url에 GET 형식의 요청이 들어오면 입력페이지 보여주는 API
-router.get('/write/multiIMG', (요청, 응답)=>{
-    응답.render('write2.ejs');
-}); 
-
 
 // upload.array(‘input의 name속성 이름’, '업로드 이미지 최대갯수')
 //  : 여러개의 이미지를 업로드 하고 싶을 경우 사용
@@ -458,11 +466,13 @@ router.post('/add/multiIMG',  upload.array('img1', 10), async (요청, 응답)=>
 
             // client.db('forum').collection('post').insertOne({title : 요청.body.title, content : 요청.body.content});
             //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션에 js객체 형식으로 적힌 {}안의 데이터를 기입
-            await db.collection('post').insertOne({
-                title : 요청.body.title,
-                content : 요청.body.content,
-                img : 요청.files.map(file => file.location)          // 나중에 게시글 상세조회시 여기 저장된 이미지 url배열의 요소들을 참고하여 s3에 접근하여 이미지를 가져옴 
-            })
+            let result = await db.collection('post').insertOne({
+                            title : 요청.body.title,
+                            content : 요청.body.content,
+                            img : 요청.files.map(file => file.location)          // 나중에 게시글 상세조회시 여기 저장된 이미지 url배열의 요소들을 참고하여 s3에 접근하여 이미지를 가져옴 
+                        })
+
+            console.log(result);
 
             // 응답parameter명.redirect('/list/paging/ver1/1');
             //  : 도메인 /list/paging/ver1/1 url의 API로 강제로 보내기
@@ -508,7 +518,8 @@ router.get('/detail/:id', async (요청, 응답) => {
 // (과제) 사용자가 목록 화면에서 도메인/edit/:parameter로 GET방식의 API를 요청하면, edit.ejs 템플릿을 따르는 상세페이지 보여주기
 router.get('/edit/:id', async (요청, 응답) => {
 
-    let result = await db.collection('post').findOne({_id : new ObjectId(요청.params.id)});
+    let result = await db.collection('post').findOne({_id : new ObjectId(요청.params.id), user : 요청.user._id });
+    console.log(result);
     응답.render('edit.ejs', { 기존글 : result });
 });
 
@@ -534,15 +545,17 @@ router.post('/revise/:id', async (요청, 응답)=>{
 
                 // client.db('forum').collection('post').updateOne( { _id : 요청.params.id }, { $set: { title : 요청.body.title, content : 요청.body.content } } );
                 //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션에 id가 url파라미터의 id와 같은 데이터를 찾은뒤 js객체 형식으로 적힌 {}안의 데이터로 수정
-                await db.collection('post').updateOne( 
-                    { _id : new ObjectId(요청.params.id) }, 
-                    { $set: {   
-                                title : 요청.body.title, 
-                                content : 요청.body.content,
-                                img : 요청.file.location 
-                            } 
-                    } 
-                );
+                let result = await db.collection('post').updateOne( 
+                                { _id : new ObjectId(요청.params.id), user : 요청.user._id }, 
+                                { $set: {   
+                                            title : 요청.body.title, 
+                                            content : 요청.body.content,
+                                            img : 요청.file.location 
+                                        } 
+                                } 
+                            );
+
+                console.log(result);
 
                 // 응답parameter명.redirect('/list/paging/ver1/1');
                 //  : 도메인 /list/paging/ver1/1 url의 API로 강제로 보내기
@@ -566,7 +579,12 @@ router.delete('/delete', async (요청, 응답)=>{
 
         // client.db('forum').collection('post').updateOne( { _id : new ObjectId(요청.query.id) } );
         //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션에 id가 url queryString id라는 데이터명의 값과 같은 데이터를 찾은뒤 이를 삭제
-        await db.collection('post').deleteOne( { _id : new ObjectId(요청.query.id) } );
+        let result = await db.collection('post').deleteOne({   
+                                                                _id  : new ObjectId(요청.query.id) ,
+                                                                user : 요청.user._id
+                                                            });
+
+        console.log(result);
         응답.send('삭제완료');
     } catch (e) {
         console.log(e);
