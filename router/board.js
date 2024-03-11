@@ -503,10 +503,14 @@ router.get('/detail/:id', async (요청, 응답) => {
         let result = await db.collection('post').findOne({_id : new ObjectId(요청.params.id)});
         console.log(result);
 
+        // 해당 글에 달려있는 덧글을 가져오는 구조이므로, 배열화시켜야 하므로 toArray()를 사용
+        let result2 = await db.collection('comment').find({ parentId : new ObjectId(요청.params.id) }).toArray()
+        console.log(result2);
+
         if (result == null) {
             응답.status(400).send('그런 글 없음')
         } else {
-            응답.render('detail.ejs', { 상세글 : result })
+            응답.render('detail.ejs', { 상세글 : result, 댓글 : result2 })
         }
 
     } catch (e) {
@@ -592,5 +596,22 @@ router.delete('/delete', async (요청, 응답)=>{
     }
 
 });
+
+// 원글에 대한 덧글기능을 form 방식으로 기입 
+router.post('/comment/ver1', async (요청, 응답)=>{
+    let result = await db.collection('comment').insertOne({
+        // 덧글내용
+        content : 요청.body.content,
+        // 원글의 id
+        parentId : new ObjectId(요청.body.parentId),
+        writerId : new ObjectId(요청.user._id),
+        writer : 요청.user.username
+    })
+
+    
+    // 응답parameter.redirect('back')
+    //  : 해당 express HTTP 메서드의 요청 프로세스를 해당 API를 호출한 이전 페이지의 URL의 API가 처리하도록 떠넘기게 처리 
+    응답.redirect('back')
+}) 
 
 module.exports = router;

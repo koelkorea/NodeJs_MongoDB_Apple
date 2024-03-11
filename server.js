@@ -374,6 +374,7 @@ app.get('/logout', (요청, 응답) => {
 //        -> 얘들도 결국 근본적으로는 express().http메서드명()기반으로 작동하는 코드를 모아둔 JS파일에 불과함
 //           (= (중요) express().use(미드웨어 함수명 or 무명 미드웨어함수) 코드 밑에 존재한다면, 그 함수들을 전부 미드웨어 함수로 작동시킴)
 app.use('/board', require('./router/board.js') );
+app.use('/comment', require('./router/comment.js') );
 app.use('/shop', require('./router/shop.js') );
 app.use('/theme', require('./router/theme.js') );
 

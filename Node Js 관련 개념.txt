@@ -489,8 +489,11 @@
                       d. 응답parameter.redirect('url명')
                           : 해당 express HTTP 메서드의 요청 프로세스를 다른 API가 처리하도록 떠넘기게 처리 
                             (= 주로 강제로 페이지 이동시키는 사용)
+
+                      e. 응답parameter.redirect('back')
+                          : 해당 express HTTP 메서드의 요청 프로세스를 해당 API를 호출한 이전 페이지의 URL의 API가 처리하도록 떠넘기게 처리 
       
-                      e. 응답.status(HTTP status 숫자)
+                      f. 응답.status(HTTP status 숫자)
                           : 해당 express HTTP 메서드의 요청 프로세스에 응답시 현재 status를 클라이언트에 전달할 때 사용
                              -> 여기에 체인메서드를 통해 .send()메서드로 메시지 보낼수도 있음
       
