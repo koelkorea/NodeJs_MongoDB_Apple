@@ -33,7 +33,7 @@ require('../database.js').then((client)=>{
 //  -> (주의) router용도의 js 파일에 작성된 API들은 'express().http메서드' ->  'require('express').Router().http메서드'로 작성되어야 함
 //       -> 이렇게 함으로서, url을 단서로 server.js에서 해당 router.js를 찾아내고, 해당 js파일에서 적합한 API를 연결해주기 때문
 
-// 원글에 대한 덧글기능을 form 방식으로 기입 
+// 덧글2. 원글에 대한 덧글기능을 form 방식으로 기입 
 router.post('/write/ver1', async (요청, 응답)=>{
     let result = await db.collection('comment').insertOne({
         // 덧글내용
@@ -50,6 +50,7 @@ router.post('/write/ver1', async (요청, 응답)=>{
     응답.redirect('back')
 }) 
 
+// (과제) 덧글2. AJAX 형식으로 비동기 업뎃이 되도록 구현해봐라  
 router.post('/write/ver2', async (요청, 응답)=>{
     let result = await db.collection('comment').insertOne({
         // 덧글내용
@@ -60,6 +61,8 @@ router.post('/write/ver2', async (요청, 응답)=>{
         writer : 요청.user.username
     })
 
+    // mongoDB 추가 결과값
+    응답.send(result);
 }) 
 
 module.exports = router;
