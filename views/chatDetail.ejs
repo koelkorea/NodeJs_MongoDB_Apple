@@ -23,5 +23,22 @@
         <button class="chat-button">전송</button>
     </div> 
 
+    <script src="https://cdn.jsdelivr.net/npm/socket.io@4.7.2/client-dist/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        socket.emit('join-room-request', 'room1');
+
+        document.querySelector('.chat-button').addEventListener('click' , () => {
+            socket.emit('message', { msg : 'greeting!', room : 'room1'});
+        });
+
+        socket.on('broadcast' , (data) => {
+            console.log(data);
+        });
+    </script>
+
 </body>
+
+
+
 </html>

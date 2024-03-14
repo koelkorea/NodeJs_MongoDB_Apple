@@ -40,9 +40,40 @@ app.use(express.json());
 app.use(express.urlencoded({extended:true})) ;
 
 //---------------------------------------------------------------------------
+// 웹소켓 socket.io 모듈 import에 해당하는 내용
+
+// http 모듈 import
+const { createServer } = require('http');
+// (중요) socket.io가 사용가능한 형식의 createServer(require('express'))으로 express 기반의 서버 생성
+const server = createServer(app);
+
+// socket.io 모듈 import
+const { Server } = require('socket.io');
+// socket.io가 사용가능한 형식의 express 기반으로 한 websocket 객체를 생성하고 변수인 io에 줌
+const io = new Server(server);
+
+io.on('connection' , (socket) => {
+
+    socket.on('age' , (data) => {
+
+        console.log('유저가보낸거', data);
+        io.emit('name', 'kim');
+    });
+
+    socket.on('join-room-request' , (data) => {
+
+        socket.join(data);
+    });
+
+    socket.on('message' , (data) => {
+
+        io.to(data.room).emit('broadcast', data.msg);
+    });
+
+});
+
+//---------------------------------------------------------------------------
 // MongoDB 모듈 import에 해당하는 내용
-//  - MongoClient : DB접속시 생성된 해당 유저정보를 담는 JS객체에 해당
-//  - ObjectId : 사용자가 DB에서 ID기반 검색시 생성된 JS에서 이 ID정보를 인식하고 DB에 검색 명령 내릴때 전달가능하게 하는 JS객체에 해당
 const { ObjectId } = require('mongodb')
 
 // MongoDB 서버 접속 결과 및 DB제어 함수를 사용하기 위한 변수
@@ -59,7 +90,10 @@ require('./database.js').then((client)=>{
     // express().listen(포트, () => console.log('접속 성공 메시지') )
     //  : 해당 포트번호를 통해 통신하는 웹서버를 띄운 뒤, 성공하면 성공메시지를 터미널에 보내라는 명령어
     //    (= 그냥 최초성공시 메시지 보내는 용도로.. 필수는 아님)
-    app.listen(process.env.PORT, () => {
+
+    // createServer(require('express')).listen(포트, () => console.log('접속 성공 메시지') )
+    //  : 상단의 socket.io가 사용가능한 서버 형식 버전
+    server.listen(process.env.PORT, () => {
         console.log('http://localhost:8080 에서 서버 실행중')
     })
 
@@ -82,7 +116,8 @@ const bcrypt = require('bcrypt')
 
 // connect-mongo 라이브러리 관련 모듈
 //  -> 얘를 통해 passport 라이브러리의 session 저장할 DB를 mongoDB로 지정 가능함
-const MongoStore = require('connect-mongo')
+const MongoStore = require('connect-mongo');
+const { Socket } = require('dgram');
 
 // passport 라이브러리 관련 변수 초기화
 app.use(passport.initialize())
