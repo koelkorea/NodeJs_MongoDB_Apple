@@ -34,25 +34,31 @@ require('../database.js').then((client)=>{
 //       -> 이렇게 함으로서, url을 단서로 server.js에서 해당 router.js를 찾아내고, 해당 js파일에서 적합한 API를 연결해주기 때문
 
 
-// 채팅 걸기 (공사중)
+// 글쓴이에게 채팅 걸기(userid에 따른 조건에 따른 분기 작성 필요)
 router.get('/request', async (요청, 응답)=>{
-    await db.collection('chatroom').insertOne({
+
+    let result = await db.collection('chatroom').insertOne({
         member : [요청.user._id, new ObjectId(요청.query.writerId)],
         date : new Date()
-    })
-    응답.redirect('채팅방목록페이지')
+    });
+
+    console.log(result);
+
+    응답.redirect('/chat/list')
 });
 
-// 내 채팅 리스트 가져오기(공사중)
+// 내 채팅 리스트 가져오기(userid에 따른 조건에 따른 분기 작성 필요)
 router.get('/list', async (요청, 응답)=>{
-    let result = await db.collection('chatroom').find({ member : 요청.user._id }).toArray()
-    응답.render('chatList.ejs', {글목록 : result})
+    let result = await db.collection('chatroom').find({ member : 요청.user._id }).toArray();
+    console.log(result);
+    응답.render('chatList.ejs', {글목록 : result , 유저id : 요청.user.username})
 }) 
 
-// 현재 들어간 채팅내용(공사중)
+// 현재 들어간 채팅내용
 router.get('/detail/:id', async (요청, 응답)=>{
-    let result = await db.collection('chatroom').findOne({ _id : new ObjectId(요청.params.id)})
-    응답.render('chatDetail.ejs', {result : result})
+    let result = await db.collection('chatroom').findOne({ _id : new ObjectId(요청.params.id)});
+    console.log(result);
+    응답.render('chatDetail.ejs', {result : result, 유저id : 요청.user.username})
 }) 
 
 module.exports = router;

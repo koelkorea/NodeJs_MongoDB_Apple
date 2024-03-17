@@ -23,22 +23,44 @@
         <button class="chat-button">전송</button>
     </div> 
 
+    <!-- 웹소켓 사용을 원하는 화면(html, jsx, ejs 등) 파일에 socket.io 라이브러리를 연결 -->
     <script src="https://cdn.jsdelivr.net/npm/socket.io@4.7.2/client-dist/socket.io.min.js"></script>
     <script>
+
+        // const socket = io() 기반
+        // (= 화면.ejs의 script 태그 내에서 사용되는 변수 = 클라이언트의 화면(= 클라이언트 -> 서버)이 소통의 시작이라는 의미를 암시)
         const socket = io();
-        socket.emit('join-room-request', 'room1');
 
-        document.querySelector('.chat-button').addEventListener('click' , () => {
-            socket.emit('message', { msg : 'greeting!', room : 'room1'});
-        });
-
+        // (수신용)
+        // io().on('클라이언트가 붙인 데이터명', 무명콜백함수 ( 서버로부터 받은 데이터 객체 parameter ) => { 내용 } )
+        //  : 서버에서 보낸 메세지나 데이터를 수신한 뒤, 그를 기반으로 클라이언트에서 특정 코드를 실행하고 싶은 경우 사용
         socket.on('broadcast' , (data) => {
             console.log(data);
         });
+
+        // (발신용)
+        // io().emit('클라이언트가 붙인 클라이언트 측에서 붙인 데이터명', '데이터')  
+        // : ('클라이언트 -> 서버') 클라이언트가 웹소켓으로 어떤 데이터를 서버로 전송하고 싶을떄 사용
+
+        // ex1) 서버에 socket.io를 사용하여, age라는 데이터명으로 20이라는 데이터를 전송
+        socket.emit('age' , '20');
+
+        // ex2) 서버에 socket.io를 사용하여, join-room-request라는 데이터명으로 { userid : '<%= 유저id %>', room : 'room1'}이라는 js객체 데이터를 전송
+        //  -> 서버는 join-room-request을 받으면, 요청한 room 멤버변수의 room을 생성해 요청한 사용자를 참여시키도록 socket api작성
+        socket.emit('join-room-request', { userid : '<%= 유저id %>', room : 'room1'});
+
+        // 클릭이벤트와 결합
+        document.querySelector('.chat-button').addEventListener('click' , () => {
+
+            // io().emit('클라이언트가 붙인 클라이언트 측에서 붙인 데이터명', { msg : '메세지내용', room : '대상 room' } ) 
+            //  : ('클라이언트 -> 서버') 클라이언트가 특정한 '대상 room'에 소속된 다른 클라이언트들에게 웹소켓으로 '메세지내용' or 데이터를 실시간으로 보내달라고 서버에 요청할 때 사용
+
+            // ex3) 서버에 socket.io를 사용하여, message라는 데이터명으로  { msg : 'greeting!', room : 'room1'}이라는 js객체 데이터를 전송
+            socket.emit('message', { msg : 'greeting!', room : 'room1'});
+        });
+
+
+
     </script>
-
 </body>
-
-
-
 </html>

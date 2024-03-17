@@ -50,24 +50,73 @@ const server = createServer(app);
 // socket.io 모듈 import
 const { Server } = require('socket.io');
 // socket.io가 사용가능한 형식의 express 기반으로 한 websocket 객체를 생성하고 변수인 io에 줌
+// (= server.js에서 사용되는 변수 = 서버가 소통의 시작(= 서버 -> 클라이언트)이라는 의미를 암시)
 const io = new Server(server);
 
+// io.on('connection', 무명콜백함수 ( socket ) => { 내용 } )
+//  : 클라이언트가 웹소켓 연결 및 새로운 내용의 데이터를 수신한걸 감지할 때, 서버에서 특정 코드를 실행하고 싶은 경우의 내용을 무명콜백함수에 넣어 사용
 io.on('connection' , (socket) => {
 
-    socket.on('age' , (data) => {
+    // (중요!) 무명콜백함수의 parameter socket ( <-> (중요) 화면.ejs에서 사용하는 io()를 받는 변수 socket)
+    //   : socket.io에 내장된 블랙박스인 클라이언트로부터 데이터 수신시에 이를 받고 처리할 목적으로 실행되는 'websocket 객체' 그 자체
+    //      -> 클라이언트와의 실시간 데이터 수신 자체는 무명콜백함수를 통해 paramter로 삽입된 해당 socket를 매개로 socket의 메서드들을 실행하여 이뤄짐
 
-        console.log('유저가보낸거', data);
-        io.emit('name', 'kim');
-    });
+    console.log('어떤 클라이언트에서 웹소켓에 연결하였습니다.');
 
+    // socket.on('클라이언트가 붙인 데이터명', (클라이언트로부터 받은 data 객체 parameter) => { 내용 }
+    // : 클라이언트에게서 서버가 '데이터명'이란 이름으로 보내진 내용의 데이터를 '수신'하게 되면, 그 수신한 data를 parameter로 받아 가공한 무명콜백함수 ( 클라이언트로부터 받은 data 객체 parameter ) => { 내용 } 를 실행해 주는 API에 해당
+    //   (= io.on() 안에 여러가지의 데이터명을 받을떄를 대비한 API에 해당하는 socket.on() 기입은 자유로히 가능함)
+    //       -> (중요) 서버의 io.on('connection', (socket) => { 내용 } )안에는 클라이언트가 기입한 '데이터명'들에 따라 어떻게 반응할지에 대한 경우의 수만큼 socket.on('데이터명', (data) => { 내용 }이 작성됨
+
+    // ex1) 클라이언트 측에서 socket.io의 io()을 사용해 join-room-request라는 '데이터명'으로 서버에 데이터를 보낸 경우, 서버는 그 data를 다음과 같이 받고 가공함
     socket.on('join-room-request' , (data) => {
 
-        socket.join(data);
+        // socket.join('대상 room이름') 
+        //   : 클라이언트가 서버가 socket.on() 에 상정한 특정 '데이터명'(개발자 마음대로 지어도 됨)으로 요청을 먼저 보낸다면 
+        //       -> 서버는 그 클라이언트를 '대상 room이름'으로 되어있는 'room의 멤버로 해당 클라이언트를 끼워줌'
+        //          (= 서버는 room에 있는 클라이언트들을 구분하여, 데이터를 보낼 수 있음)
+        //       -> (중요) 클라측에서 요구한 room 생성 및 참가에 대한 new Server(server).join()의 반환값은 존재하지 않음
+        let result = socket.join(data.room);
+        console.log(`(중요) room 생성 및 참가에 대한 new Server(server).join()의 반환값은 존재하지 않음 : ${result}`); // undefined
+        console.log(`클라이언트 ${data.userid} 측에서 요청한 ${data.room}라는 room 생성과 참여가 완료되었습니다`);
     });
 
+    // ex2) (연습용으로 작성) 클라이언트 측에서 socket.io의 io()을 사용해 age라는 '데이터명'으로 서버에 데이터를 보낸 경우, 서버는 그 data를 다음과 같이 받고 가공함
+    socket.on('age' , (data) => {
+
+        console.log('유저가 보낸 데이터 : ', data);
+
+        // (중요) 클라측에서 보내달라고 요구한 데이터를 요구한 room에 보냈는지 여부는 true/false
+        let result = io.emit('name', 'kim');
+        console.log(result);
+
+        console.log(`유저를 향해 name : kim이라는 내용의 데이터를 보냈습니다.`);
+    });
+
+    // ex3) 클라이언트 측에서 socket.io의 io()을 사용해 message라는 '데이터명'으로 서버에 데이터를 보낸 경우, 서버는 그 data를 다음과 같이 받고 가공함
     socket.on('message' , (data) => {
 
-        io.to(data.room).emit('broadcast', data.msg);
+        // socket.request.session
+        //   : passport 라이브러리 사용시 socket.io와 연계하여 로그인 정보에 해당하는 쿠키를 전송하는 미들웨어를 실행하여 서버에 보내면, 서버가 쉽게 클라이언트의 로그인 정보를 출력가능하게 되는 객체 속성
+        //     (= 메세지 보내는 유저가 누구인지 확인하고 그걸 웹소켓 기능에 응용할 수 있다는 것)
+        //         -> https://socket.io/how-to/use-with-express-session 참고하여 실행하면 사용 가능
+        let userInfo = socket.request.session;
+        console.log(`유저의 정보 : ${userInfo}`);
+
+        console.log('유저가 보낸 데이터 : ', data);
+
+        // io.to(data.room).emit('서버가 붙인 데이터명', data.msg) 
+        //  : ('서버 -> 특정 room의 클라이언트') 클라이언트가 요청한 data.room안의 '특정 room'의 클라이언트들에게로 data.msg 데이터를 웹소켓으로 전송하고 싶을때 사용                         
+
+        // (중요) 클라측에서 보내달라고 요구한 데이터를 요구한 room에 보냈는지 여부는 true/false
+        let result = io.to(data.room).emit('broadcast', data.msg);
+        console.log(result);
+
+        // data.멤버변수 
+        //  : 클라이언트 측에서 보낸 데이터를 2개 이상의 멤버변수들이 존재하는 js객체 타입으로 서버에 보냈으면, 구체적인 멤버변수를 지정해서 무명콜백함수의 내용을 작성해야함
+        //    (= 1개의 데이터를 개별로 보냈으면, 그냥 data로 참고 및 접근이 가능함)
+        console.log(`${data.room}라는 room에 속해있는 클라이언트 들에게 ${data.msg}라는 메시지를 보냈습니다.`);
+        console.log(`클라이언트 측의 broadcast라는 데이터명에 해당하는 io.on함수 처리에 따라, 브라우저 console 창에 ${data.msg} 메시지가 떠 있음`);
     });
 
 });
