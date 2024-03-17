@@ -399,27 +399,6 @@ app.get('/logout', (요청, 응답) => {
     응답.redirect('/login')
 })
 
-// 채팅 걸기 (공사중)
-app.get('/chat/request', async (요청, 응답)=>{
-    await db.collection('chatroom').insertOne({
-        member : [요청.user._id, new ObjectId(요청.query.writerId)],
-        date : new Date()
-    })
-    응답.redirect('채팅방목록페이지')
-});
-
-// 내 채팅 리스트 가져오기(공사중)
-app.get('/chat/list', async (요청, 응답)=>{
-    let result = await db.collection('chatroom').find({ member : 요청.user._id }).toArray()
-    응답.render('chatList.ejs', {글목록 : result})
-}) 
-
-// 현재 들어간 채팅내용(공사중)
-app.get('/chat/detail/:id', async (요청, 응답)=>{
-    let result = await db.collection('chatroom').findOne({ _id : new ObjectId(요청.params.id)})
-    응답.render('chatDetail.ejs', {result : result})
-}) 
-
 // routes(라우트)
 //  : 웹서버의 API가 호출되었을때, 어떤 화면을 응답으로서 보내는 역할을 하는 경우 그 API를 route(노선)라고 부름
 //     -> router : 호출되는 API에 따라 응답되는 화면을 전문적으로 중계해주는 역할을 하는 파일이나 역할을 통칭하는 개념
@@ -431,6 +410,7 @@ app.get('/chat/detail/:id', async (요청, 응답)=>{
 //           (= (중요) express().use(미드웨어 함수명 or 무명 미드웨어함수) 코드 밑에 존재한다면, 그 함수들을 전부 미드웨어 함수로 작동시킴)
 app.use('/board', require('./router/board.js') );
 app.use('/comment', require('./router/comment.js') );
+app.use('/chat', require('./router/chat.js') );
 app.use('/shop', require('./router/shop.js') );
 app.use('/theme', require('./router/theme.js') );
 
