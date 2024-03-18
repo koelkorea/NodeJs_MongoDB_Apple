@@ -31,9 +31,11 @@
         // (= 화면.ejs의 script 태그 내에서 사용되는 변수 = 클라이언트의 화면(= 클라이언트 -> 서버)이 소통의 시작이라는 의미를 암시)
         const socket = io();
 
+        // -----------------------------------------------------[socket.io 클라이언트 조작 연습]---------------------------------------------------------------------------
         // (수신용)
         // io().on('클라이언트가 붙인 데이터명', 무명콜백함수 ( 서버로부터 받은 데이터 객체 parameter ) => { 내용 } )
         //  : 서버에서 보낸 메세지나 데이터를 수신한 뒤, 그를 기반으로 클라이언트에서 특정 코드를 실행하고 싶은 경우 사용
+        //     -> 하단의 클릭이벤트를 통해 보낸 message라는 데이터명의 데이터를 서버가 받으면, 데이터명이 broadcast인 데이터를 서버가 보내주고 그걸 받음
         socket.on('broadcast' , (data) => {
             console.log(data);
         });
@@ -47,7 +49,7 @@
 
         // ex2) 서버에 socket.io를 사용하여, join-room-request라는 데이터명으로 { userid : '<%= 유저id %>', room : 'room1'}이라는 js객체 데이터를 전송
         //  -> 서버는 join-room-request을 받으면, 요청한 room 멤버변수의 room을 생성해 요청한 사용자를 참여시키도록 socket api작성
-        socket.emit('join-room-request', { userid : '<%= 유저id %>', room : 'room1'});
+        socket.emit('join-room-request', { userid : '<%= 유저id %>', room : '<%= 채팅정보._id %>'});
 
         // 클릭이벤트와 결합
         document.querySelector('.chat-button').addEventListener('click' , () => {
@@ -58,6 +60,9 @@
             // ex3) 서버에 socket.io를 사용하여, message라는 데이터명으로  { msg : 'greeting!', room : 'room1'}이라는 js객체 데이터를 전송
             socket.emit('message', { msg : 'greeting!', room : 'room1'});
         });
+
+        //------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 
 

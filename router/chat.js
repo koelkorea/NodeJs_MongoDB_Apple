@@ -51,14 +51,14 @@ router.get('/request', async (요청, 응답)=>{
 router.get('/list', async (요청, 응답)=>{
     let result = await db.collection('chatroom').find({ member : 요청.user._id }).toArray();
     console.log(result);
-    응답.render('chatList.ejs', {글목록 : result , 유저id : 요청.user.username})
+    응답.render('chatList.ejs', {채팅방목록 : result , 유저id : 요청.user.username})
 }) 
 
 // 현재 들어간 채팅내용
 router.get('/detail/:id', async (요청, 응답)=>{
     let result = await db.collection('chatroom').findOne({ _id : new ObjectId(요청.params.id)});
     console.log(result);
-    응답.render('chatDetail.ejs', {result : result, 유저id : 요청.user.username})
+    응답.render('chatDetail.ejs', {채팅정보 : result, 유저id : 요청.user.username})
 }) 
 
 module.exports = router;
