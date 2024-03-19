@@ -42,6 +42,22 @@ app.use(express.urlencoded({extended:true})) ;
 //---------------------------------------------------------------------------
 // 웹소켓 socket.io 모듈 import에 해당하는 내용
 
+// (중요) socket.io의 작동순서
+//   : 쉽게 말해, 클라이언트의 요청 선빵으로 시작하고...
+//      -> emit()으로 서버던 클라이언트건 '채널명'과 'room명'을 URL처럼 입력해서 원하는 클라이언트에 원하는 반응을하고 데이터를 보내주고
+//      -> on()으로 다른 측이 보낸 data를 받고 data 파라미터로 받은걸 가공하고, 후속작업을 침
+
+//       0) 상단의 설치 부분을 다 완료한걸 가정함
+//       1) 클라이언트 측에서 웹소켓 기능을 사용하는 화면에서 socket.io를 통해 서버에 웹소켓 요청을 보내는 기능 io().emit()을 사용
+//           -> (클라이언트 to 서버) 특정 '채널명'으로 데이터를 보냄
+//       2) 서버 측에서 socket.io를 통한 웹소켓을 사용하는 new Server(server).on('connection') 코드를 찾아서 연결한 뒤에, socket객체를 parameter로 쓰는 콜백함수를 통해 클라이언트가 보낸 '채널명'을 찾음
+//       3) 클라이언트가 보낸 '채널명'에 해당하는 socket.on()을 실행하여 클라이언트가 보낸 데이터를 받음
+//           -> 서버 측에서 클라이언트가 보낸 '채널명'을 URL처럼 보고, 그에 대응하는 API를 찾는 것과 유사한 행위 수행
+//       4) (생략가능) 서버측에서 클라이언트가 보낸 데이터를 가공하고 싶으면, data 객체를 parameter로 쓰는 콜백함수를 통해 이를 가공         
+//       5) 서버에서 클라이언트 측에 socket.io를 통해 웹소켓 요청을 보내는 기능을 new Server(server).emit()를 사용하여 수행
+//           -> (서버 to 클라이언트) 특정 '채널명'으로 데이터를 보냄 
+//              (= url없는 API없듯, 채널명 없는 웹소켓 요청은 존재해도 서버의 대응이 유의미하지 않음)
+
 // http 모듈 import
 const { createServer } = require('http');
 // (중요) socket.io가 사용가능한 형식의 createServer(require('express'))으로 express 기반의 서버 생성
@@ -54,25 +70,61 @@ const { Server } = require('socket.io');
 const io = new Server(server);
 
 // io.on('connection', 무명콜백함수 ( socket ) => { 내용 } )
-//  : 클라이언트가 웹소켓 연결 및 새로운 내용의 데이터를 수신한걸 감지할 때, 서버에서 특정 코드를 실행하고 싶은 경우의 내용을 무명콜백함수에 넣어 사용
+//  : 어떤 클라이언트라도 서버에 웹소켓 요청한게 감지되면 작동하며, 서버에서 특정 코드를 실행하고 싶은 경우의 내용을 무명콜백함수에 넣어 사용
+//     -> 쉽게 말해, 서버를 향한 웹소켓 요청 감지하면 io.on('connection') 발동 후, 무명콜백함수 ( socket ) => { 내용 }을 실행하게 되며, 클라이언트의 '채널명'에 따라 API 실행하듯 socket.on을 분기처리 실행
 io.on('connection' , (socket) => {
+
+    //  socket.io 관련 주의사항
+    //   1. server.js와 화면.ejs에서 웹소켓을 연결하는 키워드는 io라고 보면 되며, 
+    //       -> server.js : new Server(createServer(express()))로 웹소켓에 연결하고 초기화한 결과를 io라는 js변수가 받음
+    //                       -> (중요) 클라이언트의 요청에 대응하기 위해, 콜백함수(socket){ 내용 }을 paramter로 가지고, socket.on()을 통해 내용을 적음
+    //       -> 화면.ejs  : io() 함수로 웹소켓에 연결하고 초기화한 결과를 server라는 js변수가 받음
+
+    //   2. server, 화면 둘 다 웹소켓 함수는 크게 2가지라고 보면 되며, 공통된 parameter로 URL역할의 '채널명'이 들어감
+    //       -> emit() : 상대 쪽에 데이터를 전송할 떄 사용하는 함수
+    //       -> on()   : 상대 쪽에서 보낸 데이터를 수산할 떄 사용하는 함수
+    //                    -> (중요) 상대편의 데이터를 받고 가공하기 위해, 콜백함수(data){ 내용 }을 paramter로 가짐
+
+    // ---------------------------------------------[클라이언트 측의 웹소켓을 통한 서버 요청시 공통적 사용]--------------------------------------------------
 
     // (중요!) 무명콜백함수의 parameter socket ( <-> (중요) 화면.ejs에서 사용하는 io()를 받는 변수 socket)
     //   : socket.io에 내장된 블랙박스인 클라이언트로부터 데이터 수신시에 이를 받고 처리할 목적으로 실행되는 'websocket 객체' 그 자체
     //      -> 클라이언트와의 실시간 데이터 수신 자체는 무명콜백함수를 통해 paramter로 삽입된 해당 socket를 매개로 socket의 메서드들을 실행하여 이뤄짐
+    const socketInfo = socket;
+    console.log(`socket 정보 : ${socketInfo}`);
+    console.log(`어떤 클라이언트에서 socket.io를 통한 웹소켓으로 서버에 연결/요청하였습니다.`);
 
-    console.log('어떤 클라이언트에서 웹소켓에 연결하였습니다.');
+    // 모든 클라이언트들에게 전송 (클라측의 수신은 .on()의 '채널명' paramter로)
+    // io.emit('서버가 붙인 채널명', '서버가 보낸 메세지') 
+    //  : ('서버 -> 모든 클라이언트') 서버에 모든 연결된 '모든' 클라이언트들에게로 어떤 데이터를 웹소켓으로 전송하고 싶을때 사용
+    //      -> (중요) 전송결과에 대한 반환값은 boolean 값 (= 전송 성공결과에 따라 true/false로 분기)
+    let result1 = io.emit('allSend', '클라이언트에서 socket.io를 통해 서버에 요청함');
+    console.log(result2);
 
-    // socket.on('클라이언트가 붙인 데이터명', (클라이언트로부터 받은 data 객체 parameter) => { 내용 }
-    // : 클라이언트에게서 서버가 '데이터명'이란 이름으로 보내진 내용의 데이터를 '수신'하게 되면, 그 수신한 data를 parameter로 받아 가공한 무명콜백함수 ( 클라이언트로부터 받은 data 객체 parameter ) => { 내용 } 를 실행해 주는 API에 해당
-    //   (= io.on() 안에 여러가지의 데이터명을 받을떄를 대비한 API에 해당하는 socket.on() 기입은 자유로히 가능함)
-    //       -> (중요) 서버의 io.on('connection', (socket) => { 내용 } )안에는 클라이언트가 기입한 '데이터명'들에 따라 어떻게 반응할지에 대한 경우의 수만큼 socket.on('데이터명', (data) => { 내용 }이 작성됨
+    // 새로운 클라이언트를 매 연결마다 무작위 생성되는 socket.id를 이름으로 하는 전용 룸에 추가하여, 서버와 클라간 1:1로 연결성공 메시지 보내기
+    //  -> socket.id : 매 연결에 대해 무작위로 생성, 이를 통해 각각의 연결을 구별할 수 있음
+    const roomName = `room_${socket.id}`;
+    socket.join(roomName);
 
-    // ex1) 클라이언트 측에서 socket.io의 io()을 사용해 join-room-request라는 '데이터명'으로 서버에 데이터를 보낸 경우, 서버는 그 data를 다음과 같이 받고 가공함
+    // 웹소켓 요청한 해당 클라이언트의 room멤버에게만 환영 메시지 전송 (클라측의 수신은 .on()의 '채널명' paramter로)
+    // io.to(data.room).emit('서버가 붙인 채널명', data.msg or '메시지 내용 입력') 
+    //   : ('서버 -> 특정 room의 클라이언트') 클라이언트가 요청한 data.room안의 '특정 room'의 클라이언트들에게로 data.msg 데이터를 웹소켓으로 전송하고 싶을때 사용                         
+    //       -> (중요) 전송결과에 대한 반환값은 boolean 값 (= 전송 성공결과에 따라 true/false로 분기)
+    let result2 = io.to(data.room).emit('oneSend', '환영합니다! 서버와의 연결이 성공적으로 설정되었습니다.');
+    console.log(result2);
+
+    //----------------------------------------------------------------------------------------------------------------------------------------------------
+
+    // socket.on('클라이언트가 붙인 채널명', (클라이언트로부터 받은 data 객체 parameter) => { 내용 }
+    // : 클라이언트에게서 서버가 '채널명'이란 이름으로 보내진 내용의 데이터를 '수신'하게 되면, 그 수신한 data를 parameter로 받아 가공한 무명콜백함수 ( 클라이언트로부터 받은 data 객체 parameter ) => { 내용 } 를 실행해 주는 API에 해당
+    //   (= io.on() 안에 여러가지의 채널명을 받을떄를 대비한 API에 해당하는 socket.on() 기입은 자유로히 가능함)
+    //       -> (중요) 서버의 io.on('connection', (socket) => { 내용 } )안에는 클라이언트가 기입한 '채널명'들에 따라 어떻게 반응할지에 대한 경우의 수만큼 socket.on('채널명', (data) => { 내용 }이 작성됨
+
+    // ex1) 클라이언트 측에서 socket.io의 io()을 사용해 join-room-request라는 '채널명'으로 서버에 데이터를 보낸 경우, 서버는 그 data를 다음과 같이 받고 가공함
     socket.on('join-room-request' , (data) => {
 
         // socket.join('대상 room이름') 
-        //   : 클라이언트가 서버가 socket.on() 에 상정한 특정 '데이터명'(개발자 마음대로 지어도 됨)으로 요청을 먼저 보낸다면 
+        //   : 클라이언트가 서버가 socket.on() 에 상정한 특정 '채널명'(개발자 마음대로 지어도 됨)으로 요청을 먼저 보낸다면 
         //       -> 서버는 그 클라이언트를 '대상 room이름'으로 되어있는 'room의 멤버로 해당 클라이언트를 끼워줌'
         //          (= 서버는 room에 있는 클라이언트들을 구분하여, 데이터를 보낼 수 있음)
         //       -> (중요) 클라측에서 요구한 room 생성 및 참가에 대한 new Server(server).join()의 반환값은 존재하지 않음
@@ -81,19 +133,17 @@ io.on('connection' , (socket) => {
         console.log(`클라이언트 ${data.userid} 측에서 요청한 ${data.room}라는 room 생성과 참여가 완료되었습니다`);
     });
 
-    // ex2) (연습용으로 작성) 클라이언트 측에서 socket.io의 io()을 사용해 age라는 '데이터명'으로 서버에 데이터를 보낸 경우, 서버는 그 data를 다음과 같이 받고 가공함
+    // ex2) (연습용으로 작성) 클라이언트 측에서 socket.io의 io()을 사용해 age라는 '채널명'으로 서버에 데이터를 보낸 경우, 서버는 그 data를 다음과 같이 받고 가공함
     socket.on('age' , (data) => {
 
         console.log('유저가 보낸 데이터 : ', data);
 
         // (중요) 클라측에서 보내달라고 요구한 데이터를 요구한 room에 보냈는지 여부는 true/false
         let result = io.emit('name', 'kim');
-        console.log(result);
-
         console.log(`유저를 향해 name : kim이라는 내용의 데이터를 보냈습니다.`);
     });
 
-    // ex3) 클라이언트 측에서 socket.io의 io()을 사용해 message라는 '데이터명'으로 서버에 데이터를 보낸 경우, 서버는 그 data를 다음과 같이 받고 가공함
+    // ex3) 클라이언트 측에서 socket.io의 io()을 사용해 message라는 '채널명'으로 서버에 데이터를 보낸 경우, 서버는 그 data를 다음과 같이 받고 가공함
     socket.on('message' , (data) => {
 
         // socket.request.session
@@ -105,18 +155,16 @@ io.on('connection' , (socket) => {
 
         console.log('유저가 보낸 데이터 : ', data);
 
-        // io.to(data.room).emit('서버가 붙인 데이터명', data.msg) 
-        //  : ('서버 -> 특정 room의 클라이언트') 클라이언트가 요청한 data.room안의 '특정 room'의 클라이언트들에게로 data.msg 데이터를 웹소켓으로 전송하고 싶을때 사용                         
-
-        // (중요) 클라측에서 보내달라고 요구한 데이터를 요구한 room에 보냈는지 여부는 true/false
+        //  해당 함수는 io.on('connection', ( socket ) => { socket.on('채널명', ( data ) => { 내용 } ) } ) 과정에서 마지막 내용으로 들어가기에
+        //   -> data 객체는 socket.on()의 무명콜백함수의 paramter로 들어간 클라이언트가 보낸 정보에 해당하는 객체라고 보면 됨
+        //       -> data.room or data.msg가 무엇인지는 하단 io().emit('채널명', { msg : '메세지내용', room : '대상 room' } ) 을 참고하라
         let result = io.to(data.room).emit('broadcast', data.msg);
-        console.log(result);
 
         // data.멤버변수 
         //  : 클라이언트 측에서 보낸 데이터를 2개 이상의 멤버변수들이 존재하는 js객체 타입으로 서버에 보냈으면, 구체적인 멤버변수를 지정해서 무명콜백함수의 내용을 작성해야함
         //    (= 1개의 데이터를 개별로 보냈으면, 그냥 data로 참고 및 접근이 가능함)
         console.log(`${data.room}라는 room에 속해있는 클라이언트 들에게 ${data.msg}라는 메시지를 보냈습니다.`);
-        console.log(`클라이언트 측의 broadcast라는 데이터명에 해당하는 io.on함수 처리에 따라, 브라우저 console 창에 ${data.msg} 메시지가 떠 있음`);
+        console.log(`클라이언트 측의 broadcast라는 채널명에 해당하는 io.on함수 처리에 따라, 브라우저 console 창에 ${data.msg} 메시지가 떠 있음`);
     });
 
 });

@@ -27,37 +27,53 @@
     <script src="https://cdn.jsdelivr.net/npm/socket.io@4.7.2/client-dist/socket.io.min.js"></script>
     <script>
 
+        // (중요) socket.io의 작동순서
+        //   : 쉽게 말해, 클라이언트의 요청 선빵으로 시작하고...
+        //      -> emit()으로 서버던 클라이언트건 '채널명'과 'room명'을 URL처럼 입력해서 원하는 클라이언트에 원하는 반응을하고 데이터를 보내주고
+        //      -> on()으로 다른 측이 보낸 data를 받고 data 파라미터로 받은걸 가공하고, 후속작업을 침
+
+        //       0) 상단의 설치 부분을 다 완료한걸 가정함
+        //       1) 클라이언트 측에서 웹소켓 기능을 사용하는 화면에서 socket.io를 통해 서버에 웹소켓 요청을 보내는 기능 io().emit()을 사용
+        //           -> (클라이언트 to 서버) 특정 '채널명'으로 데이터를 보냄
+        //       2) 서버 측에서 socket.io를 통한 웹소켓을 사용하는 new Server(server).on('connection') 코드를 찾아서 연결한 뒤에, socket객체를 parameter로 쓰는 콜백함수를 통해 클라이언트가 보낸 '채널명'을 찾음
+        //       3) 클라이언트가 보낸 '채널명'에 해당하는 socket.on()을 실행하여 클라이언트가 보낸 데이터를 받음
+        //           -> 서버 측에서 클라이언트가 보낸 '채널명'을 URL처럼 보고, 그에 대응하는 API를 찾는 것과 유사한 행위 수행
+        //       4) (생략가능) 서버측에서 클라이언트가 보낸 데이터를 가공하고 싶으면, data 객체를 parameter로 쓰는 콜백함수를 통해 이를 가공         
+        //       5) 서버에서 클라이언트 측에 socket.io를 통해 웹소켓 요청을 보내는 기능을 new Server(server).emit()를 사용하여 수행
+        //           -> (서버 to 클라이언트) 특정 '채널명'으로 데이터를 보냄 
+        //              (= url없는 API없듯, 채널명 없는 웹소켓 요청은 존재해도 서버의 대응이 유의미하지 않음)
+        
         // const socket = io() 기반
         // (= 화면.ejs의 script 태그 내에서 사용되는 변수 = 클라이언트의 화면(= 클라이언트 -> 서버)이 소통의 시작이라는 의미를 암시)
         const socket = io();
 
         // -----------------------------------------------------[socket.io 클라이언트 조작 연습]---------------------------------------------------------------------------
         // (수신용)
-        // io().on('클라이언트가 붙인 데이터명', 무명콜백함수 ( 서버로부터 받은 데이터 객체 parameter ) => { 내용 } )
+        // io().on('클라이언트가 붙인 채널명', 무명콜백함수 ( 서버로부터 받은 데이터 객체 parameter ) => { 내용 } )
         //  : 서버에서 보낸 메세지나 데이터를 수신한 뒤, 그를 기반으로 클라이언트에서 특정 코드를 실행하고 싶은 경우 사용
-        //     -> 하단의 클릭이벤트를 통해 보낸 message라는 데이터명의 데이터를 서버가 받으면, 데이터명이 broadcast인 데이터를 서버가 보내주고 그걸 받음
+        //     -> 하단의 클릭이벤트를 통해 보낸 message라는 채널명의 데이터를 서버가 받으면, 채널명이 broadcast인 데이터를 서버가 보내주고 그걸 받음
         socket.on('broadcast' , (data) => {
             console.log(data);
         });
 
         // (발신용)
-        // io().emit('클라이언트가 붙인 클라이언트 측에서 붙인 데이터명', '데이터')  
+        // io().emit('클라이언트가 붙인 클라이언트 측에서 붙인 채널명', '데이터')  
         // : ('클라이언트 -> 서버') 클라이언트가 웹소켓으로 어떤 데이터를 서버로 전송하고 싶을떄 사용
 
-        // ex1) 서버에 socket.io를 사용하여, age라는 데이터명으로 20이라는 데이터를 전송
+        // ex1) 서버에 socket.io를 사용하여, age라는 채널명으로 20이라는 데이터를 전송
         socket.emit('age' , '20');
 
-        // ex2) 서버에 socket.io를 사용하여, join-room-request라는 데이터명으로 { userid : '<%= 유저id %>', room : 'room1'}이라는 js객체 데이터를 전송
+        // ex2) 서버에 socket.io를 사용하여, join-room-request라는 채널명으로 { userid : '<%= 유저id %>', room : 'room1'}이라는 js객체 데이터를 전송
         //  -> 서버는 join-room-request을 받으면, 요청한 room 멤버변수의 room을 생성해 요청한 사용자를 참여시키도록 socket api작성
         socket.emit('join-room-request', { userid : '<%= 유저id %>', room : '<%= 채팅정보._id %>'});
 
         // 클릭이벤트와 결합
         document.querySelector('.chat-button').addEventListener('click' , () => {
 
-            // io().emit('클라이언트가 붙인 클라이언트 측에서 붙인 데이터명', { msg : '메세지내용', room : '대상 room' } ) 
+            // io().emit('클라이언트가 붙인 클라이언트 측에서 붙인 채널명', { msg : '메세지내용', room : '대상 room' } ) 
             //  : ('클라이언트 -> 서버') 클라이언트가 특정한 '대상 room'에 소속된 다른 클라이언트들에게 웹소켓으로 '메세지내용' or 데이터를 실시간으로 보내달라고 서버에 요청할 때 사용
 
-            // ex3) 서버에 socket.io를 사용하여, message라는 데이터명으로  { msg : 'greeting!', room : 'room1'}이라는 js객체 데이터를 전송
+            // ex3) 서버에 socket.io를 사용하여, message라는 채널명으로  { msg : 'greeting!', room : 'room1'}이라는 js객체 데이터를 전송
             socket.emit('message', { msg : 'greeting!', room : 'room1'});
         });
 
