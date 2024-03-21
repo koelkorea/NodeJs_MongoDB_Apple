@@ -143,8 +143,10 @@ io.on('connection' , (socket) => {
         console.log(`유저를 향해 name : kim이라는 내용의 데이터를 보냈습니다.`);
     });
 
-    // ex3) 클라이언트 측에서 socket.io의 io()을 사용해 message라는 '채널명'으로 서버에 데이터를 보낸 경우, 서버는 그 data를 다음과 같이 받고 가공함
+    // ex3) (연습용으로 작성) 클라이언트 측에서 socket.io의 io()을 사용해 message라는 '채널명'으로 서버에 데이터를 보낸 경우, 서버는 그 data를 다음과 같이 받고 가공함
     socket.on('message' , (data) => {
+
+        console.log('유저가 보낸 데이터 : ', data);
 
         // socket.request.session
         //   : passport 라이브러리 사용시 socket.io와 연계하여 로그인 정보에 해당하는 쿠키를 전송하는 미들웨어를 실행하여 서버에 보내면, 서버가 쉽게 클라이언트의 로그인 정보를 출력가능하게 되는 객체 속성
@@ -152,8 +154,6 @@ io.on('connection' , (socket) => {
         //         -> https://socket.io/how-to/use-with-express-session 참고하여 실행하면 사용 가능
         let userInfo = socket.request.session;
         console.log(`유저의 정보 : ${userInfo}`);
-
-        console.log('유저가 보낸 데이터 : ', data);
 
         //  해당 함수는 io.on('connection', ( socket ) => { socket.on('채널명', ( data ) => { 내용 } ) } ) 과정에서 마지막 내용으로 들어가기에
         //   -> data 객체는 socket.on()의 무명콜백함수의 paramter로 들어간 클라이언트가 보낸 정보에 해당하는 객체라고 보면 됨
@@ -166,6 +166,26 @@ io.on('connection' , (socket) => {
         console.log(`${data.room}라는 room에 속해있는 클라이언트 들에게 ${data.msg}라는 메시지를 보냈습니다.`);
         console.log(`클라이언트 측의 broadcast라는 채널명에 해당하는 io.on함수 처리에 따라, 브라우저 console 창에 ${data.msg} 메시지가 떠 있음`);
     });
+
+    // ex4) (채팅갱신3) 클라이언트 측에서 socket.io의 io()을 사용해 message-send라는 '채널명'으로 서버에 데이터(= 채팅내용)를 보낸 경우,
+    //       -> 서버는 그 data를 다음과 같이 받고 가공한 뒤, 지정된 room에 포함된 클라이언트들에게만 message-broadcast라는 채널명으로 새로운 채팅 데이터를 보냄
+    socket.on('message-send', async (data) => {
+
+        // 새로운 채팅 내용을 채팅내용들을 저장하는 chatMessage라는 collection에 저장함 (필요한 녀석은 나중에 쿼리로 찾아옴) 
+        await db.collection('chatMessage').insertOne({
+            
+            room : new ObjectId(data.room),
+            boardId : data.boardId,
+            content : data.msg,
+            when : new Date(),
+            who : new ObjectId(data.who)
+            // who : new ObjectId(socket.request.session.passport.user.id)
+        });
+
+        //{ room : ~~, msg : ~~~ }
+        console.log('유저가 보낸거 : ', data) 
+        io.to(data.room).emit('message-broadcast', data.msg)
+    }) 
 
 });
 

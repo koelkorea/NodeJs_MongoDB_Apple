@@ -37,28 +37,71 @@ require('../database.js').then((client)=>{
 // 글쓴이에게 채팅 걸기(userid에 따른 조건에 따른 분기 작성 필요)
 router.get('/request', async (요청, 응답)=>{
 
-    let result = await db.collection('chatroom').insertOne({
-        member : [요청.user._id, new ObjectId(요청.query.writerId)],
-        date : new Date()
-    });
+    // 채팅을 건 유저가 이미 현재 게시글을 소재로 해당 유저에게 채팅을 걸었는지 확인
+    let search = await db.collection('chatroom').findone({ member : 요청.user._id }, { boardId : new ObjectId(요청.query.boardId) }).toArray();
 
-    console.log(result);
+    console.log(search);
 
-    응답.redirect('/chat/list')
+    let redirectUrl = '/chat/list';
+
+    // 해당 게시물과 해당 유저에 대해 이미 채팅을 한 적이 없는 경우에 한해서만 ㄱㄱ
+    if ( ( (search == null) || (search == '') ) && (요청.query.boardId != 요청.user.username) ){
+
+        // 개설된 채팅방 정보들만 저장하는 chatroom라는 collection에 저장함 (필요한 녀석은 나중에 쿼리로 찾아옴) 
+        let result = await db.collection('chatroom').insertOne({
+            // 채팅 관련 게시물 id
+            boardId : new ObjectId(요청.query.boardId),
+            // 채팅 참가자 id
+            member : [요청.user._id, new ObjectId(요청.query.writerId)],
+            date : new Date()
+        });
+
+        console.log(result);
+    }else if( !(search == null) || (search == '') ){
+
+        redirectUrl += '?msg=이미_만들어진_채팅방';
+
+    }else if(요청.query.boardId == 요청.user.username){
+        redirectUrl += '?msg=본인과_채팅은_불가능함';
+    }
+
+    응답.redirect(redirectUrl);
 });
 
 // 내 채팅 리스트 가져오기(userid에 따른 조건에 따른 분기 작성 필요)
 router.get('/list', async (요청, 응답)=>{
+    let msg = 요청.query.msg;
     let result = await db.collection('chatroom').find({ member : 요청.user._id }).toArray();
     console.log(result);
-    응답.render('chatList.ejs', {채팅방목록 : result , 유저id : 요청.user.username})
+    응답.render('chatList.ejs', { 채팅방목록 : result }, { 메시지 : msg })
 }) 
 
 // 현재 들어간 채팅내용
 router.get('/detail/:id', async (요청, 응답)=>{
     let result = await db.collection('chatroom').findOne({ _id : new ObjectId(요청.params.id)});
     console.log(result);
-    응답.render('chatDetail.ejs', {채팅정보 : result, 유저id : 요청.user.username})
+    응답.render('chatDetail.ejs', {채팅정보 : result, 유저정보 : 요청.user})
 }) 
+
+// 모든 채팅방 데이터 삭제
+router.delete('/delete/all', async (요청, 응답)=>{
+
+    try{
+        // client.db('forum').collection('post').deleteMany( { 조건 넣기 가능 } );
+        //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션의 모든 데이터를 삭제
+        let result = await db.collection('chatroom').deleteMany({});
+
+        console.log(result);
+        
+        // 응답parameter명.redirect('/list/paging/ver1/1');
+        //  : 도메인 /list/paging/ver1/1 url의 API로 강제로 보내기
+        응답.redirect('/board/list/paging/ver1/1');
+
+    } catch (e) {
+        console.log(e);
+        응답.status(500).send('DB에러남');
+    }
+
+});
 
 module.exports = router;

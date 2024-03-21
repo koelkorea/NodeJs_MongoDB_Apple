@@ -35,11 +35,14 @@ require('../database.js').then((client)=>{
 
 // 덧글2. 원글에 대한 덧글기능을 form 방식으로 기입 
 router.post('/write/ver1', async (요청, 응답)=>{
+    
     let result = await db.collection('comment').insertOne({
         // 덧글내용
-        content : 요청.body.content,
-        // 원글의 id
-        parentId : new ObjectId(요청.body.parentId),
+        comments : 요청.body.comments,
+        // 부모댓글 id
+        parentComments : '',
+        // 원 게시글의 id
+        boardId : new ObjectId(요청.body.boardId),
         writerId : new ObjectId(요청.user._id),
         writer : 요청.user.username
     })
@@ -54,9 +57,11 @@ router.post('/write/ver1', async (요청, 응답)=>{
 router.post('/write/ver2', async (요청, 응답)=>{
     let result = await db.collection('comment').insertOne({
         // 덧글내용
-        content : 요청.body.content,
+        comments : 요청.body.comments,
+        // 부모댓글 id
+        parentComments : '',
         // 원글의 id
-        parentId : new ObjectId(요청.body.parentId),
+        boardId : new ObjectId(요청.body.boardId),
         writerId : new ObjectId(요청.user._id),
         writer : 요청.user.username
     })
@@ -64,5 +69,26 @@ router.post('/write/ver2', async (요청, 응답)=>{
     // mongoDB 추가 결과값
     응답.send(result);
 }) 
+
+// 모든 덧글 데이터 삭제
+router.delete('/delete/all', async (요청, 응답)=>{
+
+    try{
+        // client.db('forum').collection('post').deleteMany( { 조건 넣기 가능 } );
+        //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션의 모든 데이터를 삭제
+        let result = await db.collection('comment').deleteMany({});
+
+        console.log(result);
+        
+        // 응답parameter명.redirect('/list/paging/ver1/1');
+        //  : 도메인 /list/paging/ver1/1 url의 API로 강제로 보내기
+        응답.redirect('/board/list/paging/ver1/1');
+
+    } catch (e) {
+        console.log(e);
+        응답.status(500).send('DB에러남');
+    }
+
+});
 
 module.exports = router;

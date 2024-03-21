@@ -12,6 +12,7 @@
     <%- include('nav.ejs') %>
     
     <div class="detail-bg">
+        <p>id : <%= 상세글.username %> </p>
         <h4><%= 상세글.title %></h4>
         <p><%= 상세글.content %></p>
 
@@ -28,12 +29,12 @@
 
         <!-- 채팅 거는 기능 -->
         <div>
-            <button> <a href="/chat/request?writerId=<%= 상세글.user %>">채팅하기</a></button>
+            <button> <a href="/chat/request?writerId=<%= 상세글.user %>&boardId=<%= 상세글._id %>">채팅하기</a></button>
         </div>
         <!-- DB의 덧글 LIST들 -->
         <hr style="margin-top: 60px">
         <% for (let i = 0; i < 댓글.length; i++) { %>
-            <p class="comments"><strong><%= 댓글[i].writer %></strong> <%= 댓글[i].content %></p>
+            <p class="comments"><strong><%= 댓글[i].writer %></strong> <%= 댓글[i].comments %></p>
         <% } %> 
 
         <!-- 덧글1. form 태그 형식으로 구현 -->
@@ -42,9 +43,10 @@
             <p><strong>작성자</strong> 댓글내용</p>
         </div>
         <span>
+            <b><%= 상세글.username %> </b>
             <form action="/comment/write/ver1" method="POST" style="display:inline-block">
-                <input name="content">
-                <input name="parentId" value="<%= 상세글._id %>" style="display: none">
+                <input name="comments">
+                <input name="boardId" value="<%= 상세글._id %>" style="display: none">
                 <button type="submit">댓글작성(form태그)</button>
             </form>
             <button class="ajax">댓글작성(ajax)</button>
@@ -60,12 +62,12 @@
 
         // 사용자 ID를 상세조회시 서버로부터 가져온 값 대입
         const userId = '<%= 사용자ID %>';
-        const parentId = document.querySelector("input[name='parentId']").value;
-        const content = document.querySelector("input[name='content']").value;
+        const boardId = document.querySelector("input[name='boardId']").value;
+        const comments = document.querySelector("input[name='comments']").value;
 
         // 덧글 달 API에 보낼 내용 JS객체화
-        const comment = { parentId : parentId ,
-                          content : content  }
+        const commentObject = { boardId : boardId ,
+                                comments : comments  }
 
         // (중요!) await가 붙으면, 해당 함수 {}안의 해당 비동기코드가 응답이 돌아올떄까지 이를 기다려줌
         //  -> 그런 의미에서 fetch를 통한 API 호출은 async await를 사용시 반드시 await를 붙여줘야함.. 그래야 fetch가 끝날떄까지 기다려줌 
@@ -73,7 +75,7 @@
                                                             method: 'POST',
                                                             headers: { 'Content-Type': 'application/json;charset=utf-8' },
                                                             // 덧글로 달 객체를 JS객체 -> JSON화 해서 POST전송
-                                                            body: JSON.stringify(comment)
+                                                            body: JSON.stringify(commentObject)
                                                         });
         let response = await result.text();
         
@@ -81,10 +83,16 @@
         const existedComments = document.querySelectorAll('.comments');
 
         // 추가할 덧글 내용 ``과 ${} 기호를 통해 추가
-        const addComment = `<p class="comments"><strong>${userId}</strong> ${content}</p>`
+        const addComment = `<p class="comments"><strong>${userId}</strong> ${comments}</p>`
 
-        // insertAdjacentHTML을 통해 최신 덧글 바로 뒤에 덧글 달기
-        existedComments[existedComments.length - 1].insertAdjacentHTML('beforeend', addComment);
+        if(existedComments.length == 0){
+            document.querySelector('hr').insertAdjacentHTML('beforeend', addComment);
+        }else{
+            // insertAdjacentHTML을 통해 최신 덧글 바로 뒤에 덧글 달기
+            existedComments[existedComments.length - 1].insertAdjacentHTML('beforeend', addComment);
+        }
+
+
     });
 
 </script>

@@ -226,7 +226,7 @@ router.get('/search/ver3/:page', async (요청, 응답) => {
         { $sort : { _id : 1 } },
         // { $skip : (요청.params.page - 1) * 데이터수 },
         // { $limit : 데이터수 },
-        { $project : { _id : 1, title : 1 , content : 1 } }
+        { $project : { _id : 1, title : 1 , content : 1, username : 1 } }
     );
 
     // (중요) 만들어진 search index server.js에서 활용하는 코드
@@ -247,6 +247,8 @@ router.get('/search/ver3/:page', async (요청, 응답) => {
 
     // 해당 페이지에 표시할 데이터들만 뽑음
     let result = await array.slice((요청.params.page - 1) * 5, (요청.params.page - 1) * 5 + 5);
+
+    console.log(result);
 
     // 날짜를 보내주기 위한 목적의 변수
     let date = new Date();
@@ -469,6 +471,8 @@ router.post('/add/multiIMG',  upload.array('img1', 10), async (요청, 응답)=>
             let result = await db.collection('post').insertOne({
                             title : 요청.body.title,
                             content : 요청.body.content,
+                            user : 요청.user._id,
+                            username : 요청.user.username,
                             img : 요청.files.map(file => file.location)          // 나중에 게시글 상세조회시 여기 저장된 이미지 url배열의 요소들을 참고하여 s3에 접근하여 이미지를 가져옴 
                         })
 
@@ -504,7 +508,7 @@ router.get('/detail/:id', async (요청, 응답) => {
         console.log(result);
 
         // 해당 글에 달려있는 덧글을 가져오는 구조이므로, 배열화시켜야 하므로 toArray()를 사용
-        let result2 = await db.collection('comment').find({ parentId : new ObjectId(요청.params.id) }).toArray()
+        let result2 = await db.collection('comment').find({ boardId : new ObjectId(요청.params.id) }).toArray()
         console.log(result2);
 
         if (result == null) {
@@ -590,6 +594,33 @@ router.delete('/delete', async (요청, 응답)=>{
 
         console.log(result);
         응답.send('삭제완료');
+    } catch (e) {
+        console.log(e);
+        응답.status(500).send('DB에러남');
+    }
+
+});
+
+// 모든 게시물 데이터 삭제
+router.delete('/delete/all', async (요청, 응답)=>{
+
+    try{
+        // client.db('forum').collection('post').deleteMany( { 조건 넣기 가능 } );
+        //  : MongoDB의 forum이라는 프로젝트의 post라는 컬렉션의 모든 데이터를 삭제
+        let result1 = await db.collection('post').deleteMany({});
+        let result2 = await db.collection('comment').deleteMany({});
+        let result3 = await db.collection('chatroom').deleteMany({});
+        let result4 = await db.collection('chatMessage').deleteMany({});
+
+        console.log(result1);
+        console.log(result2);
+        console.log(result3);
+        console.log(result4);
+        
+        // 응답parameter명.redirect('/list/paging/ver1/1');
+        //  : 도메인 /list/paging/ver1/1 url의 API로 강제로 보내기
+        응답.redirect('/board/list/paging/ver1/1');
+
     } catch (e) {
         console.log(e);
         응답.status(500).send('DB에러남');

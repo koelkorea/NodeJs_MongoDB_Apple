@@ -23,6 +23,7 @@
 
         <div class="white-box">
             <div class="list-box">
+                <p>id : <%= 글목록[i].username %> </p>
                 <!-- 템플릿 기호는 ""안에서도 인식되며, 링크를 만들수 있게 함 -->
                 <a href="/board/detail/<%= 글목록[i]._id %>">
                     <h4><%= 글목록[i].title %></h4>
@@ -61,15 +62,15 @@
         <div class="white-box">
             [text index]</br>
             <% if ( ( (페이지 * 1) != 1 ) || (갯수 == 0) ) { %>
-                <a href="/board/search/ver1/<%= parseInt(페이지) - 1 %>?val=<%= 검색어 %>">이전(text index)</a>
+                <a href="/board/search/ver2/<%= parseInt(페이지) - 1 %>?val=<%= 검색어 %>">이전(text index)</a>
             <% } %> 
     
             <% for (var j = 1; j <= Math.trunc( (갯수 - 1) / 5) + 1; j++){ %>
-                <a href="/board/search/ver1/<%=j%>?val=<%= 검색어 %>"> <%= j %> </a>
+                <a href="/board/search/ver2/<%=j%>?val=<%= 검색어 %>"> <%= j %> </a>
             <% } %> 
     
             <% if ( ( (페이지 * 1) != Math.trunc( (갯수 - 1) / 5) + 1 ) || (갯수 == 0) ) { %>
-                <a href="/board/search/ver1/<%= parseInt(페이지) + 1 %>?val=<%= 검색어 %>">다음(text index)</a>
+                <a href="/board/search/ver2/<%= parseInt(페이지) + 1 %>?val=<%= 검색어 %>">다음(text index)</a>
             <% } %> 
     
         </div>
@@ -93,8 +94,13 @@
 
         </div>
 
+    </div>
+    
+    <div style="text-align: center"> 
+        <button class="delete_all_document">모든 데이터 삭제</button> 
+        <!-- <%= JSON.stringify(글목록) %> -->
+        <%= 날짜 %>
     </div> 
-
 </body>
 <script>
 
@@ -120,7 +126,25 @@
         let 입력한거 = document.querySelector('.search').value
         location.href = '/board/search/ver3/1?val=' + 입력한거
     })
-    
+
+    // 모든 데이터 삭제
+    document.querySelector('.delete_all_document').addEventListener('click', function(){
+
+        if( confirm('모든 데이터를 삭제할까요?') ){
+
+            // (중요) 비동기적으로 서버와 데이터를 교환하는 js 공식 방식인 fetch api를 사용할 경우, 새로고침이 일어나지 않으므로..
+            //   -> server.js에서 redirect나 render로 다른 페이지로 이동시키는 커맨드에 대한 결정은 화면의 fetch 체이닝 로직 영역에서 결정함..
+            //      (= API {}안에서 redirect(url)을 적으면, 그걸 fetch 체이닝 단계에서 응답의 멤버변수 중 하나인 url안에 가져오는데, 이걸 window.location.href라는 window객체의 속성값으로 직접 넣어서 해결함)  
+            fetch(`/board/delete/all`,  { method : 'DELETE' })
+            .then( (응답) => {
+                응답.text();
+                console.log(응답.url);
+                응답.redirect(응답.url);
+                // window.location.href = 응답.url;
+            });
+
+        }
+    })
     
     <% for (var i = 0; i < 글목록.length; i++){ %>
 
