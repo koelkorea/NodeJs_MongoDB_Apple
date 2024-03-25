@@ -31,19 +31,27 @@
         <div>
             <button> <a href="/chat/request?writerId=<%= 상세글.user %>&boardId=<%= 상세글._id %>">채팅하기</a></button>
         </div>
-        <!-- DB의 덧글 LIST들 -->
+
+        <!-- 밑줄 -->
         <hr style="margin-top: 60px">
+        
+        <div>
+            <p><strong>작성자</strong> 댓글내용</p>
+        </div>
+
+        <!-- 밑줄 -->
+        <hr>
+
+        <!-- DB의 덧글 LIST들 -->
         <% for (let i = 0; i < 댓글.length; i++) { %>
             <p class="comments"><strong><%= 댓글[i].writer %></strong> <%= 댓글[i].comments %></p>
         <% } %> 
 
-        <!-- 덧글1. form 태그 형식으로 구현 -->
+        <!-- 밑줄 -->
         <hr>
-        <div>
-            <p><strong>작성자</strong> 댓글내용</p>
-        </div>
+
         <span>
-            <b><%= 상세글.username %> </b>
+            <b><%= 사용자ID %> </b>
             <form action="/comment/write/ver1" method="POST" style="display:inline-block">
                 <input name="comments">
                 <input name="boardId" value="<%= 상세글._id %>" style="display: none">

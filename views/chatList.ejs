@@ -13,7 +13,7 @@
 
     <h4>나의 채팅방 목록 </h4>
     <div class="white-bg">
-        <% for (let i = 0; i < 글목록.length; i++){ %>
+        <% for (let i = 0; i < 채팅방목록.length; i++){ %>
             <div class="list-box">
                 <h4>
                 <a href="/chat/detail/<%= 채팅방목록[i]._id %>">
@@ -27,10 +27,13 @@
 
 </body>
 <script>
+
+    const serverMessage = '<%= 분기메시지 %>';
+
     window.onload = () => { 
-        if(msg == '이미_만들어진_채팅방') {
+        if(serverMessage == '이미_만들어진_채팅방') {
             alert(`이미 해당 채팅방을 개설했습니다`);
-        }else if(msg == '본인과_채팅은_불가능함'){
+        }else if(serverMessage == '본인과_채팅은_불가능함'){
             alert(`본인과 채팅할 수 없음`);
         }
     }

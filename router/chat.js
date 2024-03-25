@@ -34,53 +34,96 @@ require('../database.js').then((client)=>{
 //       -> 이렇게 함으로서, url을 단서로 server.js에서 해당 router.js를 찾아내고, 해당 js파일에서 적합한 API를 연결해주기 때문
 
 
-// 글쓴이에게 채팅 걸기(userid에 따른 조건에 따른 분기 작성 필요)
+// 게시물 글쓴이를 향한 채팅 걸기(= 채팅방 생성)
+//  -> 과정1 : 현재 유저가 게시물 글쓴이면, 생성X 후 이유를 알려줘야 함
+//  -> 과정2 : 이미 현재 게시물을 주제로 채팅방이 생성되었으면, 생성X 후 이유를 알려줘야 함
+//  -> 과정3 : 1, 2 둘 다 아니면 채팅방 생성 후, REDIRECT
 router.get('/request', async (요청, 응답)=>{
 
-    // 채팅을 건 유저가 이미 현재 게시글을 소재로 해당 유저에게 채팅을 걸었는지 확인
-    let search = await db.collection('chatroom').findone({ member : 요청.user._id }, { boardId : new ObjectId(요청.query.boardId) }).toArray();
-
-    console.log(search);
-
+    // 리다이렉트할 현재 로그인 유저가 생성한 채팅방 LIST URL
+    //  -> 채팅방 생성에 실패시, URL파라미터로 메시지 보낼 예정
     let redirectUrl = '/chat/list';
 
-    // 해당 게시물과 해당 유저에 대해 이미 채팅을 한 적이 없는 경우에 한해서만 ㄱㄱ
-    if ( ( (search == null) || (search == '') ) && (요청.query.boardId != 요청.user.username) ){
+    // server.js의 API에서 요청.user._id로 접근가능한 있는 현재 로그인 한 유저의 계정정보가 위치한 collection의 objectId 형식의 고유값은 js객체..
+    const userId = 요청.user._id;
+    const writerId = new ObjectId(요청.query.writerId);
 
-        // 개설된 채팅방 정보들만 저장하는 chatroom라는 collection에 저장함 (필요한 녀석은 나중에 쿼리로 찾아옴) 
-        let result = await db.collection('chatroom').insertOne({
-            // 채팅 관련 게시물 id
-            boardId : new ObjectId(요청.query.boardId),
-            // 채팅 참가자 id
-            member : [요청.user._id, new ObjectId(요청.query.writerId)],
-            date : new Date()
-        });
+    // ObjectId객체.equals(ObjectId객체)
+    //  : server.js에서 JS객체인 ObjectId들이 같은지를 확인할 때, 그들의 힙영역의 포인터가 같은지 여부를 비교하기 위해 사용하는 mongoDB 라이브러리의 함수 (==, === 필요X)
+    //     -> (주의) 사용하기 전에 ObjectId라는 객체 타입의 정의가 필요한 관계로... 이를 정의한 mongodb 라이브러리를 import하지 않은 상태에서 사용시 에러가 발생함
+    //        (= ejs화면 파일에서 ObjectId라는 무턱대고 사용하면 오류가 발생하는 대부분의 원인을 차지)
 
-        console.log(result);
-    }else if( !(search == null) || (search == '') ){
+    // 현재 유저가 게시물 글쓴이인지를 확인 (= 과정1 조건)
+    const isUserSame = writerId.equals(userId);
 
-        redirectUrl += '?msg=이미_만들어진_채팅방';
+    console.log(`유저ID : ${userId}`);
+    console.log(`글쓴이ID : ${writerId}`);
+    console.log(isUserSame);
 
-    }else if(요청.query.boardId == 요청.user.username){
+    // (과정1) 현재 유저id가 글쓴이면, 생성X 후 이유를 알려줘야 함
+    if(isUserSame){
+
         redirectUrl += '?msg=본인과_채팅은_불가능함';
+
+    }else{
+
+        // mongoDB에 CRUD 함수 수행시, server.js에서 해당 형식의 값을 전달하기 위해서는 new ObjectId('BSON 형식 문자열')로 입력해야, DB에서 해당 값을 적합하게 인지하여 기록하거나 쿼리에 파라미터로 사용함
+
+        // 채팅을 건 현재 로그인 유저가 이미 현재 게시글을 소재로 해당 글쓴이에게 채팅을 걸었는지 확인 (= 과정2 조건)
+        const search = await db.collection('chatroom').findOne({ member : 요청.user._id }, { boardId : new ObjectId(요청.query.boardId) });
+
+        console.log(search);
+
+        //  (과정3) 과정2 조건인 현재 로그인 유저가 글쓴이에게 채팅을 건 적이 없음을 확인하면 새로운 채팅방 생성 후, REDIRECT
+        if ( (search == null) || (search == '') ) {
+
+            // 개설된 채팅방 정보들만 저장하는 chatroom라는 collection에 저장함 (필요한 녀석은 나중에 쿼리로 찾아옴) 
+            const result = await db.collection('chatroom').insertOne({
+                // 채팅 관련 게시물 id
+                boardId : new ObjectId(요청.query.boardId),
+                // 채팅 참가자 id
+                member : [요청.user._id, new ObjectId(요청.query.writerId)],
+                date : new Date()
+            });
+
+            console.log(`채팅방 생성 완료 : ${result}`);
+
+        } else { // (과정2) 이미 현재 게시물을 주제로 채팅방이 생성되었으면, 생성X 후 이유를 알려줘야 함
+
+            redirectUrl += '?msg=이미_만들어진_채팅방';
+        }
     }
 
     응답.redirect(redirectUrl);
 });
 
-// 내 채팅 리스트 가져오기(userid에 따른 조건에 따른 분기 작성 필요)
+// 현재 로그인한 유저가 생성한 채팅방 리스트
 router.get('/list', async (요청, 응답)=>{
-    let msg = 요청.query.msg;
-    let result = await db.collection('chatroom').find({ member : 요청.user._id }).toArray();
+
+    // request에서 리다이렉트 시, 채팅방을 생성못할 이유가 있으면 그 메시지를 URL파라미터로 담은 걸 받을 용도
+    const msg = 요청.query.msg;
+    console.log(msg);
+
+    // 현재 로그인한 유저가 생성한 채팅방 리스트를 user의 mongoDB 고유값인 object id를 근거로 가져옴
+    //  -> (주의) server.js의 API에서 요청.user._id로 접근가능한 현재 로그인 한 유저의 계정정보가 위치한 collection의 objectId 형식의 고유값은 js객체..
+    const result = await db.collection('chatroom').find({ member : 요청.user._id }).toArray();
     console.log(result);
-    응답.render('chatList.ejs', { 채팅방목록 : result }, { 메시지 : msg })
+
+    응답.render('chatList.ejs', { 분기메시지 : msg , 채팅방목록 : result })
 }) 
 
-// 현재 들어간 채팅내용
+// 현재 채팅방에서 진행중인 채팅 내용을 보여주기
 router.get('/detail/:id', async (요청, 응답)=>{
-    let result = await db.collection('chatroom').findOne({ _id : new ObjectId(요청.params.id)});
+
+    // 현재 로그인한 유저의 채팅방에 해당하는 채팅 내용을 채팅방의 고유값 objectid를 근거로 채팅방의 room명으로 지정하였고, 이를 room이라는 field에 저장하였던걸 기억하여 find함수 수행
+    const result = await db.collection('chatMessage').find({ room : new ObjectId(요청.params.id)}).toArray();
     console.log(result);
-    응답.render('chatDetail.ejs', {채팅정보 : result, 유저정보 : 요청.user})
+
+    // ejs 확장자의 화면 영역에서 ObjectId 형식의 값인 '채팅방ID'를 출력하면
+    //  -> JS의 자동 형변환 규칙에 따라서, 자동으로 toString() 함수를 적용하고, BSON 형식 문자열 그 자체로 등장함 명심
+    응답.render('chatDetail.ejs', {  채팅정보 : result, 
+                                    유저정보 : 요청.user, 
+                                    채팅방ID : new ObjectId(요청.params.id) })
 }) 
 
 // 모든 채팅방 데이터 삭제

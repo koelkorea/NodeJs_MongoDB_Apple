@@ -642,6 +642,7 @@
            6. 개별조회(findOne)
                : client.db('프로젝트명').collection('컬렉션명').findOne( {칼럼명 : '내용'} );
                   -> 칼럼명이 '내용'에 들어맞는 어떤 1가지의 데이터만 뽑음
+                     (= (중요) 1개의 데이터를 뽑는 것이기에, toArray()는 사용할 수 없음)
 
                  @ (주의) 데이터의 고유 id인 _id를 찾아서 검색하고 싶은 경우
                      1) const { ObjectId } = require('mongodb') 코드를 반드시 추가해야 함
@@ -663,6 +664,54 @@
                                응답.render('detail.ejs', { 상세글 : result })
                             });
 
+                 @ (중요) BSON
+                     : JSON과 유사하지만 추가적인 데이터 타입과 기능을 제공하여 MongoDB와 같은 NoSQL 데이터베이스에서 사용
+
+                 @ (중요) ObjectId 개념
+                     : BSON(Binary JSON) 형식으로 RDBMS에서 Primary Key와 같은 고유한 키 역할을 수행하기 위해 만들어진 특별한 유형의 데이터 타입
+                        -> mongoDB db에서 document에 저장된 _id라는 field를 보면 저장된 내용을 확인 가능하며, 직접적인 BSON 형식으로 저장되어 있진 않고 new ObjectID('BSON 제조용 parameter문자열')라는 JS생성자 형식으로 저장됨
+
+                           - new ObjectID('BSON 제조용 parameter문자열')
+                               : 파라미터로 전달된 문자열에 따라 BSON 형식의 ObjectID를 생성하는 JavaScript의 생성자 함수
+                                 
+                                 ex) new ObjectID('5b7d297cc718bc33212aa94)
+   
+                           - 'BSON 제조용 parameter문자열'의 구조
+                               : 총 12byte 16진수로 구성.. 보통 따로 저장하지 않으면 생성규칙에 맞춰 자동생성되며 그 소스는 초단위의 생성시간도 포함되어 있기에.. 자동생성시 고유성을 확보가능하게 설계됨
+                                 (= 총 12byte로 구성된 BSON 제조용 parameter문자열 내용을 파싱하면, ObjectID의 내용을 알 수 있음)                     
+                                    -> Timestamp(4바이트)          : Unix epoch이후 ObjectID가 생성된 시간(초)을 나타냄 (= 문서 순서를 생성순으로 유지가능)
+                                    -> Machine identifier(3바이트) : ObjectID를 생성한 컴퓨터의 기계 식별자
+                                    -> Process identifier(2바이트) : ObjectID를 생성한 프로세스의 식별자
+                                    -> Counter(3바이트)            : 같은 프로세스에서 동시에 생성된 ObjectID를 구분하기 위한 카운터 값
+
+                           - ObjectId객체.equals(ObjectId객체)
+                              : server.js에서 JS객체인 ObjectId들이 같은지를 확인할 때, 그들의 힙영역의 포인터가 같은지 여부를 비교하기 위해 사용하는 mongoDB 라이브러리의 함수 (==, === 필요X)
+                                 -> (주의) 사용하기 전에 ObjectId라는 객체 타입의 정의가 필요한 관계로... 이를 정의한 mongodb 라이브러리를 import하지 않은 상태에서 사용시 에러가 발생함
+                                    (= ejs화면 파일에서 ObjectId라는 무턱대고 사용하면 오류가 발생하는 대부분의 원인을 차지)
+
+                           - (중요!) ObjectId 형식 사용시 주의점
+                              1) mongoDB에 CRUD 함수 수행시, server.js에서 해당 형식의 값을 전달하기 위해서는 new ObjectId('BSON 형식 문자열')로 입력해야, DB에서 해당 값을 적합하게 인지하여 기록하거나 쿼리에 파라미터로 사용함
+
+                              2) 'BSON 제조용 parameter문자열'로 들어갈 byte크기가 12byte를 넘거나, 파싱할 수 없는 형식으로 입력되면 에러가 유발됨
+                                 (= new ObjectId('BSON 형식 문자열')은 new ObjectId(new ObjectId('BSON 형식 문자열')) 이런 식으로 들어갈 수 없음)
+ 
+                              3) 'BSON 제조용 parameter문자열'이 곧 ObjectID의 내용임
+
+                              4) (중요!) server.js에서 new ObjectId 형식의 값은 mongodb 라이브러리에서 정의한 ObjectId라는 형식의 js객체로서 인식됨
+                                  -> server.js에서 new ObjectId 형식의 값 비교를 위해서, ObjectId객체.equals(ObjectId객체) 함수를 사용
+                                      -> 단! mongodb 라이브러리의 import는 반드시 해야 ObjectId 타입의 메서드인 equals() 함수 사용 가능
+                                         (= ejs화면 파일에서 equals를 무턱대고 사용하면 오류가 발생하는 대부분의 원인을 차지)
+
+                              5) (중요) ejs 확장자의 화면에서 ObjectId 형식의 값을 출력할 시? 
+                                 (= 어떤 영역에 있냐에 따라 형변환 규칙이 달라지고, 이에 따라 출력이 달라짐)
+                                    -> 서버 측 템플릿 영역
+                                        : JS의 자동 형변환 규칙을 ㅈ까고, 템플릿 엔진은 템플릿 코드를 그대로 출력하거나 서버 측에서 제공된 데이터를 문자열로 변환하여 템플릿에 삽입
+                                          (= JS객체화 된 ObjectId 형식의 변수를 문자열로 출력하고 싶으면, 명시적으로 toString() 함수를 적용해줘야 함) 
+
+                                    -> 화면 측 script 영역
+                                        : JS의 자동 형변환 규칙에 따라서, 자동으로 toString() 함수를 적용하여, BSON 형식 문자열 그 자체로 출력
+                                          (= ejs 확장자의 화면측의 영역에서는 ObjectId 형식의 값 비교는 늘 하던데로 ==, === 와 같은 연산자를 사용하면 됨)
+                              
            7. (중요) 만들어진 search index server.js에서 활용하는 코드
               : client.db('프로젝트명').collection('컬렉션명').aggregate()
                  -> .find()와 유사.. BUT! ()안에 여러 조건식을 [{조건1}, {조건2} ... ] 형식으로 적용을 원할 때 사용

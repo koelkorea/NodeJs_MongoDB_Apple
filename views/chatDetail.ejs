@@ -13,9 +13,38 @@
 
     <div class="detail-bg">
         <div class="chat-screen">
-            <div class="chat-box"><span>안녕하세요</span></div>
-            <div class="chat-box"><span>안녕하세요</span></div>
-            <div class="chat-box mine"><span>안녕하세요</span></div>
+        <!-- 
+            서버 측 템플릿 영역에서 ObjectId 형식의 값을 출력시, JS의 자동 형변환 규칙을 ㅈ깜
+            (= JS객체화 된 ObjectId 형식의 변수를 문자열로 출력하고 싶으면, 명시적으로 toString() 함수를 적용해줘야 함)
+        
+            명시적으로 toString() 함수를 적용하지 않으면 js객체로 인식하나, ObjectId 타입의 메서드인 equals() 함수를 쓰려면, 함수가 정의된 mongodb 라이브러리를 ejs에서도 import해주긴 해야 함
+            (= ejs화면 파일에서 equals를 무턱대고 사용하면 오류가 발생하는 대부분의 원인을 차지)
+        -->
+
+        <% 
+            if(채팅정보 != null){
+
+                for (let i = 0; i < 채팅정보.length; i++){
+
+
+                    console.log(채팅정보[i].who);
+                    console.log(채팅정보[i].who.toString());
+                    console.log(유저정보._id);
+                    console.log(유저정보._id.toString());
+                    
+                    if (채팅정보[i].who.toString() === 유저정보._id.toString()) { 
+        %>
+                        <div class="chat-box mine"><span><%= 채팅정보[i].content %></span></div>
+        <%  
+                    } else {
+        %>
+                        <div class="chat-box"><span><%= 채팅정보[i].content %></span></div>
+        <%  
+                    } 
+                }
+            }
+        %>
+
         </div>
     </div>
     <div class="chat-form">
@@ -74,9 +103,9 @@
         // ex1) 서버에 socket.io를 사용하여, age라는 채널명으로 20이라는 데이터를 전송
         socket.emit('age' , '20');
 
-        // ex2) 서버에 socket.io를 사용하여, join-room-request라는 채널명으로 { userid : '<%= 유저id %>', room : 'room1'}이라는 js객체 데이터를 전송
+        // ex2) 서버에 socket.io를 사용하여, join-room-request라는 채널명으로 { userid : '유저id', room : 'room1'}이라는 js객체 데이터를 전송
         //  -> 서버는 join-room-request을 받으면, 요청한 room 멤버변수의 room을 생성해 요청한 사용자를 참여시키도록 socket api작성
-        socket.emit('join-room-request', { userid : '<%= 유저정보.username %>', room : '<%= 채팅정보._id %>'});
+        socket.emit('join-room-request', { userid : '<%= 유저정보.username %>', room : '<%= 채팅방ID %>'});
 
         //------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -93,14 +122,26 @@
             socket.emit('message', { msg : 'greeting!', room : 'room1'});
 
             // (채팅갱신 단계2) message-send라는 채널명으로 채팅내역을 보냄
-            socket.emit('message-send', { msg: 작성한거, room: '<%= 채팅정보._id %>', boardId: '<%= 채팅정보.boardId %>', who: '<%= 유저정보._id %>'  })
+            socket.emit('message-send', { msg: 작성한거, room: '<%= 채팅방ID %>', who: '<%= 유저정보._id %>'  })
         });
 
 
         // (채팅갱신4) 어떤 클라이언트던 상단의 클릭이벤트를 통해 보낸 message-send라는 채널명의 데이터를 서버가 받으면, 
         //  -> 채널명이 message-broadcast인 데이터를 서버가 보내주고 클라이언트는 그걸 받은 뒤, 화면에 실시간으로 DOM 생성해 갱신
         socket.on('message-broadcast', (data) => {
-            document.querySelector('.chat-screen').insertAdjacentHTML('beforeend', `<div class="chat-box"><span>${data}</span></div>`)
+
+            // 화면 측 script 영역에서 ObjectId 형식의 값을 출력시, JS의 자동 형변환 규칙에 따라서, 자동으로 toString() 함수를 적용
+            // (= ejs 확장자의 화면측의 영역에서는 ObjectId 형식의 값 비교는 늘 하던데로 ==, === 와 같은 연산자를 사용하면 됨)
+            //    -> ObjectId를 BSON 형식 문자열 그 자체로 출력
+
+            // server의 웹소켓을 통한 통신 결과, 메시지를 보낸 주체가 현재 로그인 사용자인지 여부에 따라, 출력되는 채팅박스의 스타일을 변경
+
+            // if(data.who.toString() === '<%= 유저정보._id.toString() %>'){
+            if(data.who === '<%= 유저정보._id %>'){
+                document.querySelector('.chat-screen').insertAdjacentHTML('beforeend', `<div class="chat-box mine"><span>${data.content}</span></div>`)
+            }else{
+                document.querySelector('.chat-screen').insertAdjacentHTML('beforeend', `<div class="chat-box"><span>${data.content}</span></div>`)
+            }
         })
 
 

@@ -803,11 +803,18 @@
           @ 유저가 웹서버에 API로 요청시, 세션 유효여부 확인 + 웹서버에 세션정보 보내서 참조 가능 기능 담당 코드
 
             - 선언부
-              passport.deserializeUser(async 무명콜백함수(로그인 정보 객체, 콜백함수) => { API요청 세션 검증 및 세션정보 API측의 요청정보에 포함 내용 }))
+              passport.deserializeUser(async 무명콜백함수(로그인 정보 객체, 콜백함수) => { API요청 세션 검증 및 세션정보 API측의 요청정보에 포함 내용 })
                  : 유저가 웹서버에 API로 요청을 할 때마다, 쿠키에 위치한 유저의 세션 데이터를 서버가 확인하여 검증하고 문제없으면 데이터를 보내주는 passport 라이브러리에서 담당하는 함수
-                    -> 검증이 끝났다면, 웹서버는 API 호출시 paramter로 보내는 무명함수의 paramter인 요청객체에 그 로그인 된 데이터를 user라는 멤버변수에 담아줌..)
+                    -> 검증이 끝났다면, 웹서버는 API 호출시 paramter로 보내는 무명함수의 paramter인 요청객체에 그 로그인 된 데이터를 user라는 멤버변수에 담아줌..
                        (= 각 API의 {} 안에서 '요청.user' 코드를 통해 그 정보에 접근가능하게 함 )
-    
+
+                    -> server.js의 API에서 요청.user._id로 접근가능한 현재 로그인 한 유저의 계정정보가 위치한 collection의 objectId 형식의 고유값은 objectId라는 js객체 형식
+                       (= (중요!) server.js에서 new ObjectId 형식의 값은 mongodb 라이브러리에서 정의한 ObjectId라는 형식의 js객체로서 인식됨)
+                           -> server.js에서 new ObjectId 형식의 값 비교를 위해서, ObjectId값.equals(ObjectId값) 함수를 사용해야 함
+                             (= JS객체 자체는 객체가 저장된 힙영역의 포인터 값을 가짐)
+                                ->단! mongodb 라이브러리의 import는 반드시 해야 ObjectId 타입의 메서드인 equals() 함수 사용 가능
+                                   (= ejs화면 파일에서 equals를 무턱대고 사용하면 오류가 발생하는 대부분의 원인을 차지)
+
                     -> (무명 콜백함수의 paramter들)
                          - 로그인 정보 객체  : 유저의 로그인 정보
                          - 무명 콜백함수     : parameter로 주어진 정보(주로 세션 id와 유저 id)를 API에서 사용/참고할 수 있도록 '요청'객체에 보내주는 함수

@@ -99,7 +99,7 @@ io.on('connection' , (socket) => {
     //  : ('서버 -> 모든 클라이언트') 서버에 모든 연결된 '모든' 클라이언트들에게로 어떤 데이터를 웹소켓으로 전송하고 싶을때 사용
     //      -> (중요) 전송결과에 대한 반환값은 boolean 값 (= 전송 성공결과에 따라 true/false로 분기)
     let result1 = io.emit('allSend', '클라이언트에서 socket.io를 통해 서버에 요청함');
-    console.log(result2);
+    console.log(result1);
 
     // 새로운 클라이언트를 매 연결마다 무작위 생성되는 socket.id를 이름으로 하는 전용 룸에 추가하여, 서버와 클라간 1:1로 연결성공 메시지 보내기
     //  -> socket.id : 매 연결에 대해 무작위로 생성, 이를 통해 각각의 연결을 구별할 수 있음
@@ -107,17 +107,17 @@ io.on('connection' , (socket) => {
     socket.join(roomName);
 
     // 웹소켓 요청한 해당 클라이언트의 room멤버에게만 환영 메시지 전송 (클라측의 수신은 .on()의 '채널명' paramter로)
-    // io.to(data.room).emit('서버가 붙인 채널명', data.msg or '메시지 내용 입력') 
+    // io.to('room명').emit('서버가 붙인 채널명', data.msg or '메시지 내용 입력') 
     //   : ('서버 -> 특정 room의 클라이언트') 클라이언트가 요청한 data.room안의 '특정 room'의 클라이언트들에게로 data.msg 데이터를 웹소켓으로 전송하고 싶을때 사용                         
     //       -> (중요) 전송결과에 대한 반환값은 boolean 값 (= 전송 성공결과에 따라 true/false로 분기)
-    let result2 = io.to(data.room).emit('oneSend', '환영합니다! 서버와의 연결이 성공적으로 설정되었습니다.');
+    let result2 = io.to(roomName).emit('oneSend', '환영합니다! 서버와의 연결이 성공적으로 설정되었습니다.');
     console.log(result2);
 
     //----------------------------------------------------------------------------------------------------------------------------------------------------
 
     // socket.on('클라이언트가 붙인 채널명', (클라이언트로부터 받은 data 객체 parameter) => { 내용 }
-    // : 클라이언트에게서 서버가 '채널명'이란 이름으로 보내진 내용의 데이터를 '수신'하게 되면, 그 수신한 data를 parameter로 받아 가공한 무명콜백함수 ( 클라이언트로부터 받은 data 객체 parameter ) => { 내용 } 를 실행해 주는 API에 해당
-    //   (= io.on() 안에 여러가지의 채널명을 받을떄를 대비한 API에 해당하는 socket.on() 기입은 자유로히 가능함)
+    //  : 클라이언트에게서 서버가 '채널명'이란 이름으로 보내진 내용의 데이터를 '수신'하게 되면, 그 수신한 data를 parameter로 받아 가공한 무명콜백함수 ( 클라이언트로부터 받은 data 객체 parameter ) => { 내용 } 를 실행해 주는 API에 해당
+    //    (= io.on() 안에 여러가지의 채널명을 받을떄를 대비한 API에 해당하는 socket.on() 기입은 자유로히 가능함)
     //       -> (중요) 서버의 io.on('connection', (socket) => { 내용 } )안에는 클라이언트가 기입한 '채널명'들에 따라 어떻게 반응할지에 대한 경우의 수만큼 socket.on('채널명', (data) => { 내용 }이 작성됨
 
     // ex1) 클라이언트 측에서 socket.io의 io()을 사용해 join-room-request라는 '채널명'으로 서버에 데이터를 보낸 경우, 서버는 그 data를 다음과 같이 받고 가공함
@@ -140,7 +140,7 @@ io.on('connection' , (socket) => {
 
         // (중요) 클라측에서 보내달라고 요구한 데이터를 요구한 room에 보냈는지 여부는 true/false
         let result = io.emit('name', 'kim');
-        console.log(`유저를 향해 name : kim이라는 내용의 데이터를 보냈습니다.`);
+        console.log(`age 채널로 메시지 전송(${result}) : 유저를 향해 name : kim이라는 내용의 데이터를 보냈습니다.`);
     });
 
     // ex3) (연습용으로 작성) 클라이언트 측에서 socket.io의 io()을 사용해 message라는 '채널명'으로 서버에 데이터를 보낸 경우, 서버는 그 data를 다음과 같이 받고 가공함
@@ -157,34 +157,54 @@ io.on('connection' , (socket) => {
 
         //  해당 함수는 io.on('connection', ( socket ) => { socket.on('채널명', ( data ) => { 내용 } ) } ) 과정에서 마지막 내용으로 들어가기에
         //   -> data 객체는 socket.on()의 무명콜백함수의 paramter로 들어간 클라이언트가 보낸 정보에 해당하는 객체라고 보면 됨
-        //       -> data.room or data.msg가 무엇인지는 하단 io().emit('채널명', { msg : '메세지내용', room : '대상 room' } ) 을 참고하라
         let result = io.to(data.room).emit('broadcast', data.msg);
 
         // data.멤버변수 
         //  : 클라이언트 측에서 보낸 데이터를 2개 이상의 멤버변수들이 존재하는 js객체 타입으로 서버에 보냈으면, 구체적인 멤버변수를 지정해서 무명콜백함수의 내용을 작성해야함
         //    (= 1개의 데이터를 개별로 보냈으면, 그냥 data로 참고 및 접근이 가능함)
-        console.log(`${data.room}라는 room에 속해있는 클라이언트 들에게 ${data.msg}라는 메시지를 보냈습니다.`);
-        console.log(`클라이언트 측의 broadcast라는 채널명에 해당하는 io.on함수 처리에 따라, 브라우저 console 창에 ${data.msg} 메시지가 떠 있음`);
+        console.log(`message 채널로 메시지 전송(${result}) : `);
+        console.log(` -> ${data.room}라는 room에 속해있는 클라이언트 들에게 ${data.msg}라는 메시지를 보냈습니다.`);
+        console.log(` -> 클라이언트 측의 broadcast라는 채널명에 해당하는 io.on함수 처리에 따라, 브라우저 console 창에 ${data.msg} 메시지가 떠 있음`);
     });
 
     // ex4) (채팅갱신3) 클라이언트 측에서 socket.io의 io()을 사용해 message-send라는 '채널명'으로 서버에 데이터(= 채팅내용)를 보낸 경우,
     //       -> 서버는 그 data를 다음과 같이 받고 가공한 뒤, 지정된 room에 포함된 클라이언트들에게만 message-broadcast라는 채널명으로 새로운 채팅 데이터를 보냄
     socket.on('message-send', async (data) => {
 
+        console.log('유저가 보낸거 : ', data);
+
         // 새로운 채팅 내용을 채팅내용들을 저장하는 chatMessage라는 collection에 저장함 (필요한 녀석은 나중에 쿼리로 찾아옴) 
-        await db.collection('chatMessage').insertOne({
+        let result1 = await db.collection('chatMessage').insertOne({
+
+            // (중요) ObjectId 개념
+            //   : BSON(Binary JSON) 형식으로 RDBMS에서 Primary Key와 같은 고유한 키 역할을 수행하기 위해 만들어진 특별한 유형의 데이터 타입
+            //      -> mongoDB db에서 document에 저장된 _id라는 field를 보면 저장된 내용을 확인 가능하며, 직접적인 BSON 형식으로 저장되어 있진 않고 new ObjectID('BSON 제조용 parameter문자열')라는 JS생성자 형식으로 저장됨
+
+            // (중요) BSON
+            //  : JSON과 유사하지만 추가적인 데이터 타입과 기능을 제공하여 MongoDB와 같은 NoSQL 데이터베이스에서 사용
+
+            // new ObjectID('BSON 제조용 parameter문자열')
+            //  : 파라미터로 전달된 문자열에 따라 BSON 형식의 ObjectID를 생성하는 JavaScript의 생성자 함수
             
+            // server.js에서 new ObjectId 형식의 값은 mongodb 라이브러리에서 정의한 ObjectId라는 형식의 js객체로서 인식됨
+            //   -> server.js에서 new ObjectId 형식의 값 비교를 위해서, ObjectId객체.equals(ObjectId객체) 함수를 사용
+            //       -> 단! mongodb 라이브러리의 import는 반드시 해야 ObjectId 타입의 메서드인 equals() 함수 사용 가능
+            //          (= ejs화면 파일에서 equals를 무턱대고 사용하면 오류가 발생하는 대부분의 원인을 차지)
             room : new ObjectId(data.room),
-            boardId : data.boardId,
             content : data.msg,
             when : new Date(),
             who : new ObjectId(data.who)
             // who : new ObjectId(socket.request.session.passport.user.id)
         });
 
+        console.log(`chatMessage 컬랙션 입력결과(${result1}) : `);
+        console.log(` -> 유저${data.who}가 보낸 room명인 ${data.room}을 FK로 한 채팅 내용을 chatMessage라는 컬랙션에 기록하는데 성공하였습니다`);
+
         //{ room : ~~, msg : ~~~ }
-        console.log('유저가 보낸거 : ', data) 
-        io.to(data.room).emit('message-broadcast', data.msg)
+        let result2 = io.to(data.room).emit('message-broadcast', { content: data.msg, who : new ObjectId(data.who) });
+
+        console.log(`message-send 채널로 메시지 전송(${result2}) : `);
+        console.log(` -> ${data.room}라는 room에 속해있는 클라이언트 들에게 ${data.msg}라는 메시지와 ${data.who}라는 유저정보를 보냈습니다.`);
     }) 
 
 });
