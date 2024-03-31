@@ -28,6 +28,12 @@
 </body>
 <script>
 
+    let eventSource = new EventSource('/stream/list')
+
+    eventSource.addEventListener('msg', function (e){
+        console.log(e.data);
+    });
+
     // (중요) 비동기적으로 서버와 데이터를 교환하는 js 공식 방식인 fetch api를 사용할 경우, 새로고침이 일어나지 않으므로..
     //   -> server.js에서 redirect나 render로 다른 페이지로 이동시키는 커맨드에 대한 결정은 화면의 fetch 체이닝 로직 영역에서 결정함..
     //      (= API {}안에서 redirect(url)을 적으면, 그걸 fetch 체이닝 단계에서 응답의 멤버변수 중 하나인 url안에 가져오는데, 이걸 window.location.href라는 window객체의 속성값으로 직접 넣어서 해결함)  
@@ -40,5 +46,10 @@
             })
         }
     });
+
+    document.querySelector('.logo').addEventListener('click', function(){
+        console.log(`로고 : 뭔데요?`);
+    });
+
 </script>
 </html>

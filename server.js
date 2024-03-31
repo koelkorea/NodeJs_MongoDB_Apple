@@ -536,6 +536,21 @@ app.get('/logout', (요청, 응답) => {
     응답.redirect('/login')
 })
 
+app.get('/stream/list', (요청, 응답) => {
+
+    응답.writeHead(200, {
+        "Connection": "keep-alive",
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+    });
+
+    setInterval( () =>{
+        응답.write('event: msg\n');
+        응답.write('data: {"head" : "contents"}\n');
+        응답.write('data:  -> JSON 보내기 쌉가능! \n\n');
+    }, 2000)
+});
+
 // routes(라우트)
 //  : 웹서버의 API가 호출되었을때, 어떤 화면을 응답으로서 보내는 역할을 하는 경우 그 API를 route(노선)라고 부름
 //     -> router : 호출되는 API에 따라 응답되는 화면을 전문적으로 중계해주는 역할을 하는 파일이나 역할을 통칭하는 개념

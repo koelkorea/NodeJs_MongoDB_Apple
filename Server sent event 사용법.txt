@@ -1,0 +1,62 @@
+- Server sent events (서버가 일방적 전달)
+   : 서버에 한번 연결해두면 그 연결을 유지하여, 서버가 원할 때 실시간으로 라디오 같이 데이터를 마음배로 유저에게 보내줄 수 있는 서버 to 클라이언트 일방향 통신법
+       -> 가벼운 데이터를 일정한 간격으로 클라이언트 측에 전달해야 할 때 유용함 
+          (= 유저는 그냥 라디오 듣듯이 일방적으로 서버가 주는걸 받기만 할 수 있다..)
+
+            ex) 서버에서 계속 유저에게 데이터를 푸시하여 새로고침해주는 주식창 
+                 -> (중요) 주기적으로 뭘 보내는 데에는 setInterval()함수와 연계
+
+
+   # Express 환경에서 Server sent events 사용하기
+      : server sent events 쓰겠다고 서버에 HTTP요청을 날리면, 서버에서 server sent events로 업그레이드해주는 식으로 사용
+        (= 정확히는 화면의 script 영역에서 Server sent events 관련 함수를 통해 API를 호출하면, 서버는 header영역을 keep-alive로 하여 상호 간 연결을 유지하고, 서버는 클라이언트 측에 계속 응답을 보내주는 개념)
+
+        1) Server.js에서 Server sent events를 사용하길 원하는 API를 찾음
+        2) 원하는 지점에서 응답.writeHead() 함수를 사용하여, response header 정보의 영역을 "Connection": "keep-alive"을 포함하여 입력하자
+            -> "Connection": "keep-alive" 를 쓰는 이유는 클라이언트 측에 해당 연결이 계속되어 한다는걸 말해주는 의미
+
+                ex) 응답.writeHead(200, {
+                       "Connection": "keep-alive",
+                       "Content-Type": "text/event-stream",
+                       "Cache-Control": "no-cache",
+                     });
+
+        3) 응답.writeHead() 함수 밑에, 응답.write() 함수를 통해 보내고 싶은 이벤트명(event)과 내용(data)을 작성
+            -> 응답.write() 내의 문자열들을 통해 서버가 지속적으로 클라이언트 측에 문자열을 계속 유저에게 전송
+               (= 문자열 전송 가능하다? == 응답.write()을 통해 JS객체를 JSON으로 보낼 수도 있다는 말)
+
+                @ 응답.writeHead() 함수 작성시 주의사항
+                   a. event는 일종의 채널명을 적는 영역으로서, 클라이언트 측은 SSE함수로 API를 호출한 후 서버에서 보낸 데이터 중 자신이 설정한 event명에 해당하는 데이터만 받을 수 있음
+                   b. string 입력처럼, 한줄 끝나면 줄바꿈을 의미하는 문자열 \n을 넣어야 함
+                   c. 주기적으로 뭘 보내는 명령어를 쓰려면, WEB API의 setInterval()함수와 연계
+                   d. 객체헤더와 내용을 분별하는 부호 : 왼쪽에 띄어쓰기를 쓰지 마라
+
+                      ex) 응답.write('event: msg\n');   <- O
+                          응답.write('event : msg\n');  <- X
+
+        4) SSE를 사용한 API가 완성되면, 해당 API 사용을 원하는 화면(html, jsx, ejs 등)의 스크립트 영역에서 new EventSource('URL 입력')
+        5) 4)에 이어 스크립트 영역에 eventSource.addEventListener('event명', function (e){ e.data로 서버데이터를 이용한 내용 }) 메서드를 사용하여 HTTP요청을 날림
+            -> 이를 통해 서버가 보낸 event명의 메시지를 받음
+
+               ex) (server.js)
+               
+                    app.get('/stream/list', (요청, 응답) => {
+                    
+                      응답.writeHead(200, {
+                        "Connection": "keep-alive",
+                        "Content-Type": "text/event-stream",
+                        "Cache-Control": "no-cache",
+                      });
+                    
+                      응답.write('event: msg\n');
+                      응답.write('data: 바보\n\n');
+                    });
+               
+                   (화면의 script 영역)
+               
+                    <script>
+                      let eventSource = new EventSource('/stream/list')
+                      eventSource.addEventListener('msg', function (e){
+                        console.log(e.data);
+                      });
+                    </script>
