@@ -25,19 +25,6 @@
             -> 응답.write() 내의 문자열들을 통해 서버가 지속적으로 클라이언트 측에 문자열을 계속 유저에게 전송
                (= 문자열 전송 가능하다? == 응답.write()을 통해 JS객체를 JSON으로 보낼 수도 있다는 말)
 
-                @ 응답.writeHead() 함수 작성시 주의사항
-                   a. event는 일종의 채널명을 적는 영역으로서, 클라이언트 측은 SSE함수로 API를 호출한 후 서버에서 보낸 데이터 중 자신이 설정한 event명에 해당하는 데이터만 받을 수 있음
-                   b. string 입력처럼, 한줄 끝나면 줄바꿈을 의미하는 문자열 \n을 넣어야 함
-                   c. 주기적으로 뭘 보내는 명령어를 쓰려면, WEB API의 setInterval()함수와 연계
-                   d. 객체헤더와 내용을 분별하는 부호 : 왼쪽에 띄어쓰기를 쓰지 마라
-
-                      ex) 응답.write('event: msg\n');   <- O
-                          응답.write('event : msg\n');  <- X
-
-        4) SSE를 사용한 API가 완성되면, 해당 API 사용을 원하는 화면(html, jsx, ejs 등)의 스크립트 영역에서 new EventSource('URL 입력')
-        5) 4)에 이어 스크립트 영역에 eventSource.addEventListener('event명', function (e){ e.data로 서버데이터를 이용한 내용 }) 메서드를 사용하여 HTTP요청을 날림
-            -> 이를 통해 서버가 보낸 event명의 메시지를 받음
-
                ex) (server.js)
                
                     app.get('/stream/list', (요청, 응답) => {
@@ -51,8 +38,21 @@
                       응답.write('event: msg\n');
                       응답.write('data: 바보\n\n');
                     });
-               
-                   (화면의 script 영역)
+
+                @ 응답.writeHead() 함수 작성시 주의사항
+                   a. event는 일종의 채널명을 적는 영역으로서, 클라이언트 측은 SSE함수로 API를 호출한 후 서버에서 보낸 데이터 중 자신이 설정한 event명에 해당하는 데이터만 받을 수 있음
+                   b. string 입력처럼, 한줄 끝나면 줄바꿈을 의미하는 문자열 \n을 넣어야 함
+                   c. 주기적으로 뭘 보내는 명령어를 쓰려면, WEB API의 setInterval()함수와 연계
+                   d. 객체헤더와 내용을 분별하는 부호 : 왼쪽에 띄어쓰기를 쓰지 마라
+
+                      ex) 응답.write('event: msg\n');   <- O
+                          응답.write('event : msg\n');  <- X
+
+        4) SSE를 사용한 API가 완성되면, 해당 API 사용을 원하는 화면(html, jsx, ejs 등)의 스크립트 영역에서 new EventSource('URL 입력')
+        5) 4)에 이어 스크립트 영역에 EventSource객체.addEventListener('채널명', function (e){ e.data로 서버데이터를 이용한 내용 }) 메서드를 사용하여 HTTP요청을 날림
+            -> 이를 통해 서버가 보낸 채널명의 메시지를 받음
+
+               ex) (화면의 script 영역)
                
                     <script>
                       let eventSource = new EventSource('/stream/list')
@@ -60,3 +60,12 @@
                         console.log(e.data);
                       });
                     </script>
+
+               @ EventSource('SSE을 사용하는 URL 입력')
+                  : SSE를 사용하는 API를 화면에서 호출하는 목적과 관련된 정보를 관리하고 기능을 수행하는 JS객체의 생성자
+              
+               @ EventSource객체.addEventListener('채널명', function (e){ e.data로 서버데이터를 이용한 내용 })
+                  : EventSource객체의 메서드로 SSE로 서버가 특정 채널명으로 보낸 데이터를 받고 이를 가공하여 화면에 사용함 
+                     -> EventSource객체.addEventListener() 메서드의 parameter
+                         - event명     : DB내 컬랙션에 변경이 일어났을때, 키워드(CUD관련)에 맞는 방식으로 변경된 문서들에 한해서만 서버에 전송해 줌   
+                         - 무명콜백함수 : parameter에 해당하는 객체변수(= parameter명.data)를 통해, 서버측에서 보낸 데이터에 대한 정보를 받고 이를 가공함 

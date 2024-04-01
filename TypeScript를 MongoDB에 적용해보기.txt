@@ -1,0 +1,69 @@
+타입스크립트는 그냥 자바스크립트에 타입체크 기능을 업그레이드한 언어인데
+타입 틀린다고 컴파일 안해주고 서버를 다운시키고 그 정도는 아니고
+타입 틀리면 에디터에서 경고만 주는 정도인 귀여운 언어입니다.
+
+타입스크립트 적용하려면 nodejs express 프로젝트에 타입스크립트 적용하는 법을 따로 찾아보시면 되는데 요약하자면
+
+- npm install typescript ts-node @types/express dotenv express mongodb 라이브러리 설치하고
+- server.js파일을 server.ts 파일로 바꾸고 코드에 필요한 타입들도 찾아서 넣고
+- 근데 실은 타입스크립트 쓰려면 require() 말고 import 문법으로 바꾸는게 이상한 셋팅없이도 잘될거고
+- nodemon --exec ts-node server.ts 로 서버 실행하면 됩니다.
+
+
+(server.ts)
+
+import 'dotenv/config'
+import { Db, ObjectId } from 'mongodb'
+import express, { Request, Response } from 'express';
+import { connectDB } from './database'
+const app = express()
+
+let db : Db
+connectDB.then((client)=>{
+  db = client.db('forum')
+  app.listen(8080, () => {
+    console.log('http://localhost:8080 에서 서버 실행중')
+  })
+}).catch((err)=>{
+  console.log(err)
+})
+
+app.get('/', async (요청: Request, 응답: Response) => {
+  응답.send('안녕')
+})
+타입스크립트 쓰려면 server.ts를 대충 이렇게 셋팅해놓으면 됩니다.
+
+database.ts 파일에도 타입 잘 넣고 connectDB 변수도 export 잘 해놓읍시다.
+
+
+
+interface PostType {
+  _id : ObjectId,
+  title: string,
+  content: string
+}
+
+let result = await db.collection<PostType>('post').findOne({ title : '하이' }) 
+
+▲ 타입스크립트 적용하면 어딘가에 이렇게 document들의 타입을 미리 정의해놓고 
+그 다음에 collection()의 <> 괄호 안에 타입을 넣으면
+앞으로 result 변수에 타입힌트를 자동으로 부여해줍니다.
+이제 result에 마우스 올리면 result 변수 생김새도 나오고 점찍으면 자동완성같은 것도 되고 편리합니다.
+이제 console.log 안써도 되고 직접 귀찮게 DB 안들어가도 됩니다.
+
+ 
+
+타입힌트는 미래에 내가 짠 코드를 보게될 사람에게 도움이 많이 됩니다.
+
+ 
+
+ 
+
+
+ 
+
+ 
+
+ 
+
+ 

@@ -216,6 +216,9 @@ const { ObjectId } = require('mongodb')
 // MongoDB 서버 접속 결과 및 DB제어 함수를 사용하기 위한 변수
 let db;
 
+// changeStream 객체를 받고 그 기능을 수행하기 위한 변수
+let changeStream
+
 // new MongoClient(url).connect(),then((client)=>{  }
 require('./database.js').then((client)=>{
 
@@ -233,6 +236,12 @@ require('./database.js').then((client)=>{
     server.listen(process.env.PORT, () => {
         console.log('http://localhost:8080 에서 서버 실행중')
     })
+
+    // MongoClient객체.watch(pipeline객체)도 결국 함수이기에, 특별한 목적이 없으면 최소한만 호출되는게 성능에 유리함
+    //    (= 특정 컬랙션에 대한 영원한 변동사항 감시를 원한다면? 특정 API가 아니라, DB서버 연결할 때 1번만 사용해도 충분함)
+    changeStream = db.collection('post').watch([
+        { $match: { operationType: 'insert' } }
+    ])
 
 }).catch((err)=>{
     
@@ -536,7 +545,38 @@ app.get('/logout', (요청, 응답) => {
     응답.redirect('/login')
 })
 
+// Server Sent event와 mongoDB 라이브러리의 changeStream 기능을 이용해, 실시간으로 새 글이 등장하면 업데이트
+//  -> Server Sent event로 클라이언트와 연결을 유지한뒤, express의 http메서드 호출을 통한 response.write()와 changeStream객체.on() 메서드를 이용해 클라이언트에 데이터를 보냄
 app.get('/stream/list', (요청, 응답) => {
+
+    // Server sent events (서버가 일방적 전달)
+    //  : 서버에 한번 연결해두면 그 연결을 유지하여, 서버가 원할 때 실시간으로 라디오 같이 데이터를 마음배로 유저에게 보내줄 수 있는 서버 to 클라이언트 일방향 통신법
+    //     -> 가벼운 데이터를 일정한 간격으로 클라이언트 측에 전달해야 할 때 유용함 
+    //        (= 유저는 그냥 라디오 듣듯이 일방적으로 서버가 주는걸 받기만 할 수 있다..)
+
+    // # Express 환경에서 Server sent events 사용하기
+    //    : server sent events 쓰겠다고 서버에 HTTP요청을 날리면, 서버에서 server sent events로 업그레이드해주는 식으로 사용
+    //      (= 정확히는 화면의 script 영역에서 Server sent events 관련 함수를 통해 API를 호출하면, 서버는 header영역을 keep-alive로 하여 상호 간 연결을 유지하고, 서버는 클라이언트 측에 계속 응답을 보내주는 개념)
+
+    //   1) Server.js에서 Server sent events를 사용하길 원하는 API를 찾음
+    //   2) 원하는 지점에서 응답.writeHead() 함수를 사용하여, response header 정보의 영역을 "Connection": "keep-alive"을 포함하여 입력하자
+    //       -> "Connection": "keep-alive" 를 쓰는 이유는 클라이언트 측에 해당 연결이 계속되어 한다는걸 말해주는 의미
+
+    //   3) 응답.writeHead() 함수 밑에, 응답.write() 함수를 통해 보내고 싶은 이벤트명(event)과 내용(data)을 작성
+    //       -> 응답.write() 내의 문자열들을 통해 서버가 지속적으로 클라이언트 측에 문자열을 계속 유저에게 전송
+    //          (= 문자열 전송 가능하다? == 응답.write()을 통해 JS객체를 JSON으로 보낼 수도 있다는 말)
+
+    //           @ 응답.writeHead() 함수 작성시 주의사항
+    //              a. event는 일종의 채널명을 적는 영역으로서, 클라이언트 측은 SSE함수로 API를 호출한 후 서버에서 보낸 데이터 중 자신이 설정한 event명에 해당하는 데이터만 받을 수 있음
+    //              b. string 입력처럼, 한줄 끝나면 줄바꿈을 의미하는 문자열 \n을 넣어야 함
+    //              c. 주기적으로 뭘 보내는 명령어를 쓰려면, WEB API의 setInterval()함수와 연계
+    //              d. 객체헤더와 내용을 분별하는 부호 : 왼쪽에 띄어쓰기를 쓰지 마라
+
+    //                 ex) 응답.write('event: msg\n');   <- O
+    //                     응답.write('event : msg\n');  <- X
+
+    //   4) SSE를 사용한 API가 완성되면, 해당 API 사용을 원하는 화면(html, jsx, ejs 등)의 스크립트 영역에서 new EventSource('URL 입력')
+    //   5) 4)에 이어 스크립트 영역에 EventSource객체.addEventListener('event명', function (e){ e.data로 서버데이터를 이용한 내용 }) 메서드를 사용하여 HTTP요청을 날림
 
     응답.writeHead(200, {
         "Connection": "keep-alive",
@@ -544,11 +584,86 @@ app.get('/stream/list', (요청, 응답) => {
         "Cache-Control": "no-cache",
     });
 
+     // (중요) SSE건 웹서버건 주기적으로 뭘 보내는 데에는 setInterval()함수와 연계
     setInterval( () =>{
         응답.write('event: msg\n');
         응답.write('data: {"head" : "contents"}\n');
         응답.write('data:  -> JSON 보내기 쌉가능! \n\n');
     }, 2000)
+
+
+    // MongoClient에서 changeStream 코드를 작성하는 절차 및 순서
+    //  1. 원하는 위치 어디에서라도 client.db().collection().watch(pipeline객체) 쓰면, changeStream객체를 생성 + 특정 컬렉션 감시를 시작
+    //      -> 모든 document 생성/수정/삭제를 감시하기 싫으면, pipeline객체에 원하는 방식의 조건식을 적어두자... 'pipeline객체' 참고
+
+    //  2. MongoClient객체.watch()메서드의 반환값인 changeStream객체로부터 changeStream객체.on('변경event명', 무명콜백함수) 메서드 체이닝을 작성
+    //      -> 변경 event명 : DB내 컬랙션에 변경이 일어났을때, 키워드(CUD관련)에 맞는 방식으로 변경된 문서들에 한해서만 서버에 전송해 줌   
+    //         무명콜백함수  : parameter에 해당하는 변수를 통해, MongoDB측에서 보낸 변경된 document들에 대한 정보를 받고 이를 가공함
+
+    // MongoClient객체.watch(pipeline객체)
+    //  : 'MongoClient객체에 메서드'로 특정 '프로젝트' 내에 존재하는 '컬랙션'의 데이터 변동(= CUD 중 하나) 여부를 감시하는 역할을 하고 관련 정보를 담는 changeStream객체를 생성하는 메서드 
+    //    (= MongoClient Nodejs 라이브러리의 changeStream 기능 사용을 사용할 초석)
+
+    //    # MongoClient객체.watch(pipeline객체) 메서드 사용시 참고사항
+    //       1. (중요!) MongoClient객체에 소속된 메서드지만, changeStream객체를 리턴한다는 사실을 기억해야 함
+    //       2. changeStream객체를 리턴하기에, changeStream객체의 메서드인 changeStream객체.on()를 메서드 체이닝으로 사용 가능
+    //           -> changeStream객체.on()을 통해 웹서버에 감시 중 인지한 DB의 변동사항에 대해 알려주고, 무명콜백함수로 가공 가능
+
+    //               ex) MongoClient객체.db('프로젝트명').collection('컬랙션명').watch(pipeline객체).on('change', 무명콜백함수 ); 로 일반적으로 사용가능
+
+    //       3. ()안에 pipeline객체를 parameter로 가질 수 있음
+    //            -> parameter를 여러 조건식을 [{조건1}, {조건2} ... ] 형식으로 넣으면, 원하는 형식의 변동사항만 체크도 가능
+    //                -> pipeline객체 관련 내용 정리 참고
+
+    //       4. 이 녀석도 결국 함수이기에, 특별한 목적이 없으면 최소한만 호출되는게 성능에 유리함
+    //          (= 특정 컬랙션에 대한 영원한 변동사항 감시를 원한다면? 특정 API가 아니라, DB서버 연결할 때 1번만 사용해도 충분함)
+
+    //     # $match : { ChangeStream객체 필드명 : 필터링할 필드값 }
+    //        : DB가 변경을 감지한 데이터들을 보낸 ChangeStream 객체에서 가져온 문서들 중, 원하는 ChangeStream 객체 필드에서 정확히 필터링할 값과 일치하는 document만 필터링하여 서버가 수신하게 함 
+    //           -> ChangeStream 객체가 대상 = ChangeStream 객체를 반환하는 .watch(pineline객체) 메서드의 pineline 객체에만 사용가능한 연산자
+    //               -> (중요!) 사실 그래봐야... 결국 대부분의 사용자가 원하는 변동 정보는 결국 db에서 보낸 document들의 필드값이니.. fullDocument 객체를 만지게끔 되어있음
+
+    // const 찾을문서 = [
+    //     { $match: { operationType: 'insert' } }
+    // ];
+
+    // let changeStream = db.collection('post').watch(찾을문서);
+
+
+    // changeStream객체.on('변경event명', 무명콜백함수 )
+    //  : 'changeStream객체 메서드'로 MongoClient객체.watch(pipeline객체)가 감시한 변동된 데이터를 DB로부터 웹서버가 수신하게 하고 + 이를 가공하게 하는 역할의 메서드 
+
+    //      -> changeStream객체.on('변경event명', 무명콜백함수 )의 parameter 설명
+    //          1. 변경event명
+    //              : CUD 중 어떤 방식으로 변경된 document들만 서버에서 수신받을지 결정하는 키워드에 해당 
+    //                 -> change : CUD에 상관없이 모든 방식으로 변경된 document를 DB로부터 웹서버에 수신받게 함
+    //                 -> insert : Create 방식으로 변경된 document를 DB로부터 웹서버에 수신받게 함
+    //                 -> update : Update 방식으로 변경된 document를 DB로부터 웹서버에 수신받게 함
+    //                 -> delete : Delete 방식으로 변경된 document를 DB로부터 웹서버에 수신받게 함
+
+    //          2. 무명콜백함수
+    //              : 해당 콜백함수의 parameter 변수를 통해 DB가 보낸 변경된 document의 대한 데이터를 수신받고, 이를 이용해서 웹서버에서 원하는 방식으로 가공하는 역할을 맡음
+
+    // 앞선 부분에서 MongoClient객체.watch(pipeline객체)로 생성된 changeStream객체를 통해 감시중인 컬랙션에 변동된 데이터가 어떤식으로던 감지되면?
+    //  -> 그 데이터를 받은 뒤, 그 DOCUMENT의 데이터 영역인 fullDocument를 통해 DOCUMENT의 모든 필드값을 JSON형식으로 변환해서 클라이언트에 SSE형식으로 보내줌
+    changeStream.on('change', (result) => {
+
+        console.log('DB변동생김')
+
+        // SSE를 통해 msg라는 채널명으로 데이터를 보냄
+        //  -> 유저도 채널명이 같아야 추후 보낼 변동된 document 데이터를 받을 수 있음
+        응답.write('event: msg\n')
+
+        // Change Stream 객체 내부구조
+        //  : .watch()메서드의 파이브라인 객체 작성중 $match : { ChangeStream객체 필드명: 필터링할 필드값 }에 필요한 개념
+        //     1. _id           : 해당 Change Stream 객체의 고유값에 해당하는 정보를 지닌 객체로.. _data라는 내부 멤버변수를 가짐
+        //     2. operationType : 해당 변동사항이 CUD중 어떤 것인지를 의미 (insert, update, delete)
+        //     3. fullDocument  : (중요) 변동되서 DB로부터 서버로 전송된 document의 필드 정보를 객체멤버 형식으로 모두 가진 JS객체...
+        //         -> 주로 이 객체를 사용하여, 받은 데이터를 서버에서 가공하는 과정을 거칠거라 예상
+
+        // 그 DOCUMENT의 데이터 영역인 fullDocument를 통해 DOCUMENT의 모든 필드값을 JSON형식으로 변환해서 클라이언트에 SSE형식으로 보내줌
+        응답.write(`data: ${JSON.stringify(result.fullDocument)}\n\n`)
+    })
 });
 
 // routes(라우트)

@@ -84,11 +84,41 @@
 </body>
 <script>
 
+    // EventSource('SSE을 사용하는 URL 입력')
+    //  : SSE를 사용하는 API를 호출하는 목적과 관련된 정보를 관리하고 기능을 수행하는 JS객체의 생성자
     let sse = new EventSource('/stream/list')
 
+    // EventSource객체.addEventListener('채널명', function (e){ e.data로 서버데이터를 이용한 내용 })
+    //  : EventSource객체의 메서드로 SSE로 서버가 특정 채널명으로 보낸 데이터를 받고 이를 가공하여 화면에 사용함 
+    //    -> EventSource객체.addEventListener() 메서드의 parameter
+    //        - event명     : DB내 컬랙션에 변경이 일어났을때, 키워드(CUD관련)에 맞는 방식으로 변경된 문서들에 한해서만 서버에 전송해 줌   
+    //        - 무명콜백함수 : parameter에 해당하는 변수(= 객체.data)를 통해, 서버측에서 보낸 데이터에 대한 정보를 받고 이를 가공함 
     sse.addEventListener('msg', function (e){
+
+        // paramter객체명.data
+        //  : 서버가 SSE를 통해 보낸 데이터 
+        //     -> JSON 형식의 문자열로 전송됨 (= JS객체로 파싱해야.. )
         console.log(e.data);
-    });
+        let 변동된DB문서 = JSON.parse(e.data)
+
+        //document.querySelector('.white-bg').insertAdjacentHTML('afterbegin', `<div class="list-box"><h4>${변동된DB문서.title}</h4></div>`)
+
+        document.querySelector('.white-bg').insertAdjacentHTML('afterbegin',`<div class="white-box">
+                                                                                <div class="list-box">
+                                                                                    <p>id : ${변동된DB문서.username} ✨NEW!😃</p>
+                                                                                    <!-- 템플릿 기호는 ""안에서도 인식되며, 링크를 만들수 있게 함 -->
+                                                                                    <a href="/board/detail/${변동된DB문서._id}">
+                                                                                        <h4>${변동된DB문서.title}</h4>
+                                                                                    </a>
+                                                                                    <p>${변동된DB문서.content}</p>
+                                                                                    <!-- 수정화면 이동 버튼 -->
+                                                                                    <a href="/board/edit/${변동된DB문서._id}">✏️</a>
+                                                                                    <!-- 삭제기능 수행 버튼 -->
+                                                                                    <span class="delete1">🗑️</span>
+                                                                                    <span class="delete2" data-id="${변동된DB문서._id}" data-row="<%= i %>">🗑️</span>
+                                                                                </div>
+                                                                            </div>`);
+    })
 
     // 리스트 검색기능 구현 : 정규식 사용
     document.querySelector('.regex').addEventListener('click', function(){

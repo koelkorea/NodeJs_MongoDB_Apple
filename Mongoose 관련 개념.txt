@@ -1,0 +1,43 @@
+- Mongoose 라이브러리
+   : Node.js 기반으로 웹서버에서 MongoDB에 접근하고 db를 다룰수 있는 라이브러리 중 하나로, MongoDB native 라이브러리와 여러가지 차별점이 존재함
+      -> 과거에는 성능문제나 document 구조 설계 시 타입 정의 관련 장점으로 Mongoose를 사용하는 경우가 많았음
+          -> BUT 요즘은 오히려 Mongoose를 사용하면 성능이 딸리는 문제가 발생하므로, Mongoose를 쓴다면 document 구조 설계 시 타입 정의 관련 장점이 빛남
+
+    # Mongoose 라이브러리 간략한 사용 방법
+      (설치 과정과 보일러플레이트 세팅은 생략)
+
+       1. mongoose.model('객체명', new Schema( { 필드명1: 타입명1 , ... , 필드명1: 타입명1} ) )
+           : mongoose 라이브라리에 존재하는 mongoose 객체의 메서드로 원하는 document가 어떻게 생겼는지에 대해, '객체명'이라는 JS객체 형식으로 정의하는 역할
+              -> 추후 해당 js객체 형식으로 데이터를 CUD 하고 싶으면, 해당 객체를 생성할 필요 존재
+
+            @ new Schema( { 필드명1: 타입명1 , ... , 필드명1: 타입명1} )
+               : 객체(= document 형식) 내부의 필드명과 타입에 대한 정의를 한 정보를 객체 형식으로 저장하는 Schema라는 js객체 타입을 생성하는 생성자
+           
+                 ex) Blog 라는 document 형식의 필드명과 타입명들을 정의하는 코드
+                 
+                     const Blog = mongoose.model('Blog', new Schema({
+                       title: String,
+                       content: String
+                     }))
+
+       2. new 객체명( { 필드명1: 내용1 , ... , 필드명1: 내용1} )
+           : 1에서 정의했던 객체를 실체화하여 생성함
+       
+             ex) Blog 라는 document 형식의 객체의 필드명에 내용을 채우고 이를 article이라는 변수에 저장
+             
+                 const article = new Blog({
+                   title: '안녕하쇼',
+                   content: '글내용임',
+                 })
+
+       3. Mongoose객체명.메서드()
+           : 2에서 생성한 특정 document 형식의 객체를 db에 입력 및 저장처리함
+
+             ex) 앞서 생성한 Blog라는 document 형식의 데이터를 db에 입력
+             
+                 article.save() 
+
+
+    # Mongoose 라이브러리의 장점
+       1. document에 저장 전에 데이터가 정확한지 쉽게 검증을 할 수 있음
+       2. db에 입력된 document 필드 각각의 타입 힌트를 어느정도 제공해줘서 편리
