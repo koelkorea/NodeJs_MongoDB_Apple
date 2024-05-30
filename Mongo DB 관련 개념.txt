@@ -50,26 +50,33 @@
 
       # MongoDB native 라이브러리를 통해 웹서버 연결하기
          1. npm install mongodb@5 를 입력하여, mongodb 라이브러리 설치
-         2. 보일러 플레이트를 server.js에 추가
+         2. promise문법을 사용한 DB연결 로직에 해당하는 보일러 플레이트를 server.js에 추가
+             -> server.js가 아니더라도 다른 database.js 같은 파일에 두고 나서 new MongoClient(url).connect()을 받는 변수만 export로 모듈을 분리한 뒤,
+                DB에 연결을 원하는 웹페이지 템플릿의 JS 파일에 import한 뒤, 구체적인 collection 호출을 하는 식으로 운용해도 됨
 
-            const { MongoClient } = require('mongodb')
-   
-            let db
-            const url = 'mongodb사이트에 있던 님들의 DB 접속 URL'
-
-            new MongoClient(url).connect().then((client)=>{
-
-              console.log('DB연결성공')
-              db = client.db('forum')   <- 간단히 설명하면 님들이 호스팅받은 mongodb에 접속하고 접속 결과를 db라는 변수에 저장
-
-              app.listen(8080, () => {
-                console.log('http://localhost:8080 에서 서버 실행중')
-              })
-
-            }).catch((err)=>{
-                
-              console.log(err)
-            })
+                ex) then, catch, finally 버전
+    
+                    const { MongoClient } = require('mongodb')
+           
+                    let db
+                    const url = 'mongodb사이트에 있던 님들의 DB 접속 URL'
+        
+                    new MongoClient(url).connect().then((client)=>{
+        
+                      db = client.db('forum')   <- 간단히 설명하면 님들이 호스팅받은 mongodb에 접속하고 접속 결과를 db라는 변수에 저장
+        
+                    }).catch((err)=>{
+                        
+                      console.log(err)
+                    })
+    
+                ex) async, await 버전
+    
+                    const { MongoClient } = require('mongodb')
+                    
+                    const url = 'mongodb사이트에 있던 님들의 DB 접속 URL';
+                    const client = await MongoClient(url, { useNewUrlParser: true }).connect();
+                    const db = client.db("forum");
 
          3. url 변수에 'DB접속 URL'을 찾아넣자
              -> 만든 database의 connect 버튼을 누른 뒤, driver를 선택하면..
