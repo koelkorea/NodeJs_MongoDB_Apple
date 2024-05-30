@@ -50,18 +50,18 @@
 
       # MongoDB native 라이브러리를 통해 웹서버 연결하기
          1. npm install mongodb@5 를 입력하여, mongodb 라이브러리 설치
-         2. promise문법을 사용한 DB연결 로직에 해당하는 보일러 플레이트를 server.js에 추가
+         2. 비동기 코드를 promise 문법으로 통제하는 로직을 사용한 DB연결 로직에 해당하는 보일러 플레이트를 server.js에 추가
              -> server.js가 아니더라도 다른 database.js 같은 파일에 두고 나서 new MongoClient(url).connect()을 받는 변수만 export로 모듈을 분리한 뒤,
                 DB에 연결을 원하는 웹페이지 템플릿의 JS 파일에 import한 뒤, 구체적인 collection 호출을 하는 식으로 운용해도 됨
 
                 ex) then, catch, finally 버전
     
-                    const { MongoClient } = require('mongodb')
+                    const { MongoClient } = require('mongodb')    // import { MongoClient } from 'mongodb' 도 상관없음
            
                     let db
                     const url = 'mongodb사이트에 있던 님들의 DB 접속 URL'
         
-                    new MongoClient(url).connect().then((client)=>{
+                    let connectDB = new MongoClient(url).connect().then((client)=>{
         
                       db = client.db('forum')   <- 간단히 설명하면 님들이 호스팅받은 mongodb에 접속하고 접속 결과를 db라는 변수에 저장
         
@@ -72,13 +72,42 @@
     
                 ex) async, await 버전
     
-                    const { MongoClient } = require('mongodb')
+                    const { MongoClient } = require('mongodb')    // import { MongoClient } from 'mongodb' 도 상관없음
                     
                     const url = 'mongodb사이트에 있던 님들의 DB 접속 URL';
-                    const client = await MongoClient(url, { useNewUrlParser: true }).connect();
-                    const db = client.db("forum");
+                    const connectDB = await MongoClient(url, { useNewUrlParser: true }).connect();
+                    const db = connectDB.db("forum");
 
-         3. url 변수에 'DB접속 URL'을 찾아넣자
+         3. (참고) 보일러 플레이트를 database.js 같은 파일에 두어서 모듈을 분리시키고 싶다면?
+             : new MongoClient(url).connect()을 받는 변수까지만 export시킨 뒤에, 이를 사용한 페이지 js파일에서 import를 시켜 모듈을 불러오고, promise 문법으로 연결을 재개
+                -> (중요) let db 변수에 저장된 db = client.db('forum')까지 export 대상에 포함시키지 않는 이유? 
+                    : 비동기 코드를 promise 문법으로 통제하는 코드가 선행되는 사용되는 변수들은 export해서 쓰면 문제가 생길수도 있음
+
+                       ex) module export 추가 코드
+
+                           module.exports = connectDB;    //  export { connectDB }로도 대체 가능
+
+                       ex) 타 페이지 js파일에서 모듈 불러오는 then, catch, finally 버전
+ 
+                           let connectDB = require('./database.js')    // import { connectDB } from "/util/database.js"로 대체 가능
+
+                           connectDB.then((client)=>{
+                             console.log('DB연결성공');                
+                             db = client.db('forum');                  
+                             ~~
+                           }).catch((err)=>{
+                               console.log(err)
+                           })
+   
+                       ex) 타 페이지 js파일에서 모듈 불러오는 async, await 버전
+                       
+                           let connectDB = require('./database.js')    // import { connectDB } from "/util/database.js"로 대체 가능
+
+                           let client = await connectDB;
+                           const db = client.db('forum');              // let db = (await connectDB).db('forum'); 로 축약 가능
+                           ~~
+
+         4. url 변수에 'DB접속 URL'을 찾아넣자
              -> 만든 database의 connect 버튼을 누른 뒤, driver를 선택하면..
                 "mongodb+srv://DB접속아이디:DB접속비번@cluster0.jea.mongodb.net/?retryWrites=true&w=majority"
                   -> 이런 느낌의 문자열이 나오는데, 이걸 찾아서 대입해주면 됨
