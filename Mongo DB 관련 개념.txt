@@ -138,45 +138,132 @@
 
                5. 트랜잭션 및 세션 처리
 
-      # 파이프라인(= pipeline) 객체 VS 쿼리 메서드(= Query Methods) 객체
+      # 파이프라인(= pipeline) 객체 VS 필터(= Filters) 객체
          : mongo DB의 검색과 연관된 메서드들 관련 검색조건 용도로 parameter로 들어가는 객체 배열 타입
             -> (공통점) 둘 다 DB의 document를 검색하고, 정렬하는 등의 목적으로 사용함
-               (차이점) Query Methods 객체는 단순 DB 문서검색을 목적으로 한다면, pipeline 객체는 index나 ChangeStream 기능과 같이 검색 이상의 기능과 연관
+               (차이점) Filters 객체는 단순 DB 문서검색을 목적으로 한다면, pipeline 객체는 index나 ChangeStream 기능과 같이 검색 이상의 기능과 연관
 
-           1. 쿼리 메서드(= Query Methods)
+           1. 필터 (= Filters)
                : MongoClient객체의 Cursor 객체를 반환하는 DB의 문서 검색 메서드인 Update, delete, search등의 RUD와 같은 DML함수를 실행할 때, 검색조건으로 들어가는 parameter.. 
-                 (아무 내용도 쓰지 않는다면, 해당 컬랙션의 모든 document가 DML함수(  find(), findOne(), updateOne(), updateMany(), delete(), deleteMany() )의 대상이 됨)
-                   -> {$예약어 or $조건식 : 내용}의 객체타입으로 들어가거나 or 그 객체가 배열화 된 [{조건1}, {조건2} ... ]로도 사용 가능
-  
-                     @ 조건식 {검색할 필드명 : { $조건식 : 숫자 } }
-                        : > 5, <= 6 이런식으로 특정 연산조건에 맞는 데이터들만 골라서 검색할 떄 사용
-  
-                          1) $gt(greater than)        : '>' 초과를 의미
-                          2) $gte(greater than equal) : '>=' 이상을 의미
-                          3) $lt(greater than)        : '<' 미만을 의미   
-                          4) $lte(greater than equal) : '<=' 이하를 의미   
-                          5) $ne(not equal) : '!=' 어떤 수가 아님을 의미      
+                 (아무 내용도 쓰지 않는다면, 해당 컬랙션의 모든 document가 DML함수( find(), findOne(), updateOne(), updateMany(), delete(), deleteMany() )의 대상이 됨 )
+                   -> { 필드명 : { $연산자1 : 값, ... , $연산자n : 값 } } 같은 객체타입 조건으로 검색이 들어가거나 or 그 객체가 배열화 된 { 필드명 : [{조건1}, {조건2} ... ] } 로도 사용 가능
+                   
+                     @ 필드명의 데이터 검색용 $연산자 사용 Filter
+                        : 주로 { 필드명 : { $연산자 : "원시값" or [배열] or { JS객체 } , ($옵션연산자 : 내용) } } 식의 필드명이 대상
 
-                          ex1) MongoClient객체.updateMany( {수정할 데이터 검색할 칼럼명 : { $gt : 5 } }, { $set: {칼럼명1 : '수정할 내용1'} } )
-                               : 칼럼명이 5를 초과하는 모든 데이터의 칼럼명1의 값을 '수정할 내용1'로 수정해라
+                          1) 요소 연산자 (Element Operators)
+                              : 필드의 데이터의 '존재여부' , '자료형'에 기반하여 데이터를 검색하는 용도로 사용하는 연산자
+
+                               (문법1. $exists) {필드명 : { $exists : boolean } }
+                                 : 지정한 필드명에 데이터값이 존재하는 경우의 데이터만 골라 검색하는데 쓰이는 연산자 
+                                   (= NULL이나 ""가 아닌 케이스를 의미)
+
+                               (문법2. $type) {필드명 : { $exists : "자료형" } }
+                                 : 지정한 필드명에 해당 "자료형"으로 입력된 데이터를 검색하는데 쓰이는 연산자
+
+                          2) 비교 연산자 (Comparison Operators)
+                              : > 5, <= 6 이런식으로 특정 연산조건에 맞는 데이터들만 골라서 검색할 때 사용
+                               
+                               (문법1) {필드명 : { $연산자 : 숫자 } }
+                                 a. $eq  (equal)               : '=' 같음 의미  
+                                 b. $ne  (not equal)           : '!=' 어떤 수가 아님을 의미     
+                                 c. $gt  (greater than)        : '>' 초과를 의미
+                                 d. $gte (greater than equal)  : '>=' 이상을 의미
+                                 e. $lt  (lesser than)         : '<' 미만을 의미   
+                                 f. $lte (lesser than equal)   : '<=' 이하를 의미
    
-                          ex2) MongoClient객체.updateMany( {수정할 데이터 검색할 칼럼명 : { $gte : 3 } }, { $inc: {칼럼명1 : -5} } )
-                               : 칼럼명이 3이 아닌 모든 데이터의 칼럼명1의 값을 -5해라
-  
-                     @ 예약어 {검색할 필드명 : { $예약어 : 내용 } }
-                        : 말 그대로 특정한 개념을 의미하는 예약어로 용도에 맞게 사용하며... update 관련 예약어는 더 존재하니 참고바람
-                          (= 경우에 따라서는 {검색할 필드명 : { $예약어 : { $예약어 : 내용 } } } 이런식의 이중 예약어 {}도 사용 가능)
-  
-                          1) $text   : text index와 연관된 연산자로, 해당 collection에서 필드를 text로 정렬한 index를 사용하겠다는 의미로 보통 $search와 같이 쓰임
-                          2) $regex : 정규식과 연관된 연산자, 특정한 내용에 대해 정규식을 사용하여 검색함을 의미      
-  
-                             ex) MongoClient객체.db('프로젝트명').collection('컬렉션명').find( {title : {$regex : 요청.query.val} } );
-  
-                          3) $search : $text와 함께 쓰이는 연산자로, 특정한 내용에 대해 해당 collection에서 필드를 text로 정렬한 index를 사용해 검색함을 의미     
-  
-                             ex) MongoClient객체.db('프로젝트명').collection('컬렉션명').find( { $text : { $search: '안녕' } } ).
-                                  : 해당 컬랙션명의 document 중 '안녕'이란 단어를 가지고 있는 녀석들을 데이터타입 text를 사용한 index를 사용해서 검색함을 의미
-  
+                                    ex1) MongoClient객체.updateMany( {검색 필드명 : { $gt : 5 } }, { $set: {필드명1 : '수정할 내용1'} } )
+                                         : 필드명이 5를 초과하는 모든 데이터의 필드명1의 값을 '수정할 내용1'로 수정해라
+   
+                                    ex2) MongoClient객체.updateMany( {검색 필드명 : { $gte : 3 } }, { $inc: {필드명1 : -5} } )
+                                         : 필드명이 3이 아닌 모든 데이터의 필드명1의 값을 -5해라
+   
+                               (문법2) {필드명 : { $연산자 : [숫자1, ... , 숫자2] } }
+                                 g. $in  (array in)            : [배열] 중 속하는 값만   
+                                 h. $nin (array not in)        : [배열] 중 속하는 값만   
+    
+                                    ex1) MongoClient객체.updateMany( {검색 필드명 : { $in : [5, 10, 20] } }, { $set: {필드명1 : '수정할 내용1'} } )
+                                         : 필드명이 5, 10, 20에 해당하는 모든 데이터의 필드명1의 값을 '수정할 내용1'로 수정해라
+
+                          3) 배열 연산자 (Array Operators)
+                              : 특정 필드명의 데이터 중 배열값을 담는 데이터들을 대상으로 검색조건을 설정할 때 사용
+                               
+                               (문법1 $size) {필드명 : { $size : 숫자 } }
+                                 : (필드명 중 배열값을 가진 데이터들을 대상으로) 배열값의 크기가 지정한 숫자와 같은 데이터를 검색
+
+                               (문법2 $elemMatch) {필드명 : { $elemMatch : { 필드 조건식 } } } 
+                                 : (필드명 중 배열값을 가진 데이터들을 대상으로) 지정된 필드 조건식에 해당되는 데이터만 검색하는 용도로 사용
+
+                               (문법3 $all) {필드명 : { $all : [값1, ... , 값2] } }
+                                 : (필드명 중 배열값을 가진 데이터들을 대상으로) 입력된 [배열]요소를 모두 가지는 데이터만 검색하는 용도로 사용
+
+                          4) 평가 연산자 (Evaluation Operators)
+                              : 특정한 검색 조건을 설정해두고, 그 기준에 맞춰 데이터를 평가하여 검색하는 용도로 사용하는 연산자
+                                 -> 경우에 따라서는 {검색할 필드명 : { $예약어 : { $예약어 : 내용 } } } 이런식의 이중 예약어 {}도 사용 가능
+   
+                               (문법1. $regex) { 필드명 : { $regex : /정규식패턴/ , $options : '소문자'} } 
+                                 : 정규식과 연관된 연산자, 특정한 내용에 대해 정규식을 사용하여 검색함을 의미로 $option와 함께 쓰이기도 함
+   
+                                   [$regex 기반 연산자]
+                                     a. $options :  정규식에 특별한 법칙을 옵션을 flag값인 '소문자'로 부여
+                                         -> i (Ignore Case) : 대소문자 무시
+                                            m (Multi Line)  : 앵커(^) 사용시 \n 무력화
+                                            x               : 정규식 내의 공백 무시
+                                            s               : (.)을 사용할 때 \n 포함해서 매치
+                                            g (global)      : 문자열 내의 모든 패턴 검색 
+                                            u (unicode)     : 유니코드 전체를 지원
+                                            y (sticky)      : 문자 내 특정 위치에서 검색을 진행하는 'sticky' 모드를 활성화
+   
+                                     ex) MongoClient객체.db('프로젝트명').collection('컬렉션명').find( {title : {$regex : 요청.query.val, $options : 'i' } } );
+     
+                               (문법2. $text) { $text : { $search: "검색어" , $language : boolean, $caseSensitive : boolean, $diacriticSensitive : boolean} } 
+                                 : text index와 연관된 연산자로, 해당 collection에서 필드를 text로 정렬한 index를 사용하겠다는 의미로 보통 $search와 같이 쓰임
+   
+                                  [$text 기반 연산자]
+                                    a. $search             : 특정한 내용에 대해 해당 collection에서 필드를 text로 정렬한 index를 사용해 검색함을 의미
+                                    b. $caseSensitive      : 검색시 대/소문자 구분 여부
+                                    c. $diacriticSensitive : 알파벳 위아래에 붙는 기호 무시 여부
+   
+                                    ex) MongoClient객체.db('프로젝트명').collection('컬렉션명').find( { $text : { $search: '안녕' } } ).
+                                         : 해당 컬랙션명의 document 중 '안녕'이란 단어를 가지고 있는 녀석들을 데이터타입 text를 사용한 index를 사용해서 검색함을 의미
+   
+                               (문법3. $mod) { 필드명 : { $mod: [나눌숫자, 나머지값] } } 
+                                 : 해당 collection에서 필드명을 기준으로 나머지 연산을 사용하여 값을 검색
+   
+                               (문법4. $where) { 필드명 : { $where: "this.필드명 > 비교값" } } 
+                                 : 해당 collection에서 필드명을 기준으로 JavaScript 표현식을 사용하여 조건을 지정
+   
+
+                     @ 논리 연산자 (Logical Operators) 사용 Filter
+                        : $연산자로 작성된 여러개의 필터 조건식들을 논리 연산자를 통해 사용 
+
+                           (문법) { $논리연산자 : [ { 필터 조건식1 } , ... , { 필터 조건식n } ] } 식의 필드명이 대상
+                             a. $and : 모든 조건을 만족하는 데이터만 검색하라는 설정 
+                             b. $or  : 조건들 중 하나만이라도 만족하는 데이터만 검색하라는 설정 
+                             c. $nor : 모든 조건을 만족하는 데이터만 검색하라는 설정 
+                                 -> $not : ($nor의 단일 필터 조건) 해당 조건을 만족하지 않는 데이터만 검색하라는 설정 
+
+
+                     @ 기타 연산자 사용 Filter
+
+                        (문법1 $expr) { $expr: { $비교연산자 : ["$필드명1", "$필드명2"] } }
+                          : 특정 필드명들 간의 값을 비교하거나 수학적, 논리적 연산을 수행할 때 사용하는 집계 표현식에 해당하는 검색조건을 설정시 사용
+                             -> BUT! 일반 비교연산자처럼 사용도 가능함.. 하지만 그럴거면 이거 쓰지 마라
+
+                            ex) price 필드가 cost 필드보다 큰 문서 찾기
+
+                                const query = { $expr: { $gt: ["$price", "$cost"] } };
+                                 -> [ { "_id": 1, "price": 100, "cost": 80 },  { "_id": 3, "price": 120, "cost": 110 } ] 반환
+
+                            ex) endDate 필드가 startDate 필드보다 이후인 문서 찾기
+
+                                const query = { $expr: { $gt: ["$endDate", "$startDate"] } };
+                                 -> [ { "_id": 1, "startDate": "2023-01-01T00:00:00.000Z", "endDate": "2023-02-01T00:00:00.000Z" } ] 반환
+
+                        (문법2 $jsonSchema) { $jsonSchema: { properties: { 필드명: { bsonType: "string" } } } }
+                          : JSON 스키마를 사용하여 문서의 구조를 검증하여 검색조건을 작성할 때사용
+
+
            2. 파이프라인(= pipeline)
               : MongoClient객체의 메서드인 .aggregate(), .watch()의 parameter로 일종의 검색 조건으로 [{조건1}, {조건2} ... ] 형식으로 들어가는 객체배열
   
@@ -259,33 +346,33 @@
                (= 따라서 MongoDB는 컨텍스트 제어를 위한 async, await를 항시 사용할 것을 권유함.. 그게 아니면 db요청 결과를 기다리지 않고, 그냥 진행함)
          
                1. (컬랙션명에 데이터를) 단일 입력(insertOne)
-                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').insertOne( {칼럼명1 : '내용1'} , ... , {칼럼명2 : '내용2'} )
+                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').insertOne( {필드명1 : '내용1' , ... , 필드명2 : '내용2'} )
     
                2. (컬랙션명에 데이터를) 복수 개수 입력(insertMany)
-                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').insertOne( {칼럼명1 : '내용1', 칼럼명2 : '내용2'} , ...  )
+                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').insertMany( {필드명1 : '내용1', 필드명2 : '내용2'} , ...  )
     
                3. 단일 데이터만 수정(updateOne)
-                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').updateOne( QueryMethod객체 , $예약어 {칼럼명1 : '수정할 내용1'} , ... , {칼럼명2 : '수정할 내용2'} } )
+                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').updateOne( Filter객체 , $예약어 { {필드명1 : '수정할 내용1'} , ... , {필드명2 : '수정할 내용2'} } )
     
                4. (검색에 해당되는) 복수 데이터들 일괄 수정(updateMany)
-                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').updateMany( QueryMethod객체 , $예약어 {칼럼명1 : '수정할 내용1'} , ... , {칼럼명2 : '수정할 내용2'} } )
-                      -> 조건으로 들어갈 paramter에 대해서는 상단의 쿼리메서드(= QueryMethod) 참고
+                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').updateMany( Filter객체 , $예약어 { {필드명1 : '수정할 내용1'} , ... , {필드명2 : '수정할 내용2'} } )
+                      -> 조건으로 들어갈 paramter에 대해서는 상단의 쿼리메서드(= Filter) 참고
     
                      @ (중요) update 내용 기록할 parameter 객체 작성시 사용하게 될 $예약어
                         1) set : 일반적인 데이터 덮어쓰기
-                            -> MongoClient객체.db('프로젝트명').collection('컬렉션명').updateOne( {수정할 데이터 검색할 칼럼명 : '원래 내용'}, { $set: {칼럼명1 : '수정할 내용1'} , ... , {칼럼명2 : '수정할 내용2'} } )
+                            -> MongoClient객체.db('프로젝트명').collection('컬렉션명').updateOne( {수정할 데이터 검색할 필드명 : '원래 내용'}, { $set: {필드명1 : '수정할 내용1'} , ... , {필드명2 : '수정할 내용2'} } )
     
                         2) inc : 숫자로 적힌 해당 칼럼의 데이터를 적혀있는 양수/음수 만큼 더하거나 뺀 결과로 갱신해준다
-                            -> MongoClient객체.db('프로젝트명').collection('컬렉션명').updateOne( {수정할 데이터 검색할 칼럼명 : '원래 내용'}, { $inc: {칼럼명1 : 양수/음수} , ... , {칼럼명2 : 양수/음수} } )
+                            -> MongoClient객체.db('프로젝트명').collection('컬렉션명').updateOne( {수정할 데이터 검색할 필드명 : '원래 내용'}, { $inc: {필드명1 : 양수/음수} , ... , {필드명2 : 양수/음수} } )
     
                         3) mul : 숫자로 적힌 해당 칼럼의 데이터를 적혀있는 양수/음수 만큼 곱한 결과로 갱신해준다
-                            -> MongoClient객체.db('프로젝트명').collection('컬렉션명').updateOne( {수정할 데이터 검색할 칼럼명 : '원래 내용'}, { $mul: {칼럼명1 : 양수/음수} , ... , {칼럼명2 : 양수/음수} } )
+                            -> MongoClient객체.db('프로젝트명').collection('컬렉션명').updateOne( {수정할 데이터 검색할 필드명 : '원래 내용'}, { $mul: {필드명1 : 양수/음수} , ... , {필드명2 : 양수/음수} } )
     
                         4) unset : 해당 데이터를 찾은뒤 기존에 있던 필드를 제거함
-                            -> MongoClient객체.db('프로젝트명').collection('컬렉션명').updateOne( {수정할 데이터 검색할 칼럼명 : '원래 내용'}, { $unset: 칼럼명1 , ... , 칼럼명2 } } )
+                            -> MongoClient객체.db('프로젝트명').collection('컬렉션명').updateOne( {수정할 데이터 검색할 필드명 : '원래 내용'}, { { $unset: 필드명1 , ... , 필드명2 } } )
     
                5. 목록조회(find)
-                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').find(QueryMethod객체) 
+                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').find(Filter객체) 
                       -> 해당 프로젝트의 collection에 위치한 원하는 데이터 목록의 시작점이 위치한 DB의 커서 Cursor(DB 포인터 -> 메모리 주소)를 반환해 줌
     
                      @ Cursor 개념
@@ -293,11 +380,11 @@
                            -> (중요) 그리고 이 Cursor 객체는 Cursor 객체를 parameter삼아 반환값으로 내놓는 메서드들을 가지고 있고, 메서드 chaining 사용가능함
     
                      @ find() 함수 기본 사용법
-                        : find()에 paramter로 들어갈 검색조건 쿼리메서드(= QueryMethod)이 없으면, 해당 collection의 모든 데이터를 대상으로 함
-                           -> 조건으로 들어갈 paramter에 대해서는 상단의 쿼리메서드(= QueryMethod) 참고
+                        : find()에 paramter로 들어갈 검색조건 쿼리메서드(= Filter)이 없으면, 해당 collection의 모든 데이터를 대상으로 함
+                           -> 조건으로 들어갈 paramter에 대해서는 상단의 쿼리메서드(= Filter) 참고
     
-                           ex1) MongoClient객체.db('프로젝트명').collection('컬렉션명').find( { 칼럼명1 : '내용'}, ... , {칼럼명2 : '내용'} )
-                           ex2) MongoClient객체.db('프로젝트명').collection('컬렉션명').find( { 칼럼명1 : { $조건식 : 숫자 } } , ... , { 칼럼명2 : { $조건식 : 숫자 } )
+                           ex1) MongoClient객체.db('프로젝트명').collection('컬렉션명').find( { 필드명1 : '내용'}, ... , {필드명2 : '내용'} )
+                           ex2) MongoClient객체.db('프로젝트명').collection('컬렉션명').find( { 필드명1 : { $연산자 : 숫자 } } , ... , { 필드명2 : { $연산자 : 숫자 } })
     
                      @ (응용) 만약..? 페이지네이션 같이 특정 부분에 존재하는 데이터들을 몇 개만 가져오고 싶으면?
                         : find() 함수를 사용하여 뽑은 목록값에 추가적인 함수 chaining을 통해 추가적 데이터 목록의 통제가 가능
@@ -357,8 +444,8 @@
                                       2) inputStage : stage에서 선택한 방식의 세부사항을 적음
     
                6. 개별조회(findOne)
-                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').findOne( QueryMethod객체 );
-                      -> 칼럼명이 '내용'에 들어맞는 어떤 1가지의 데이터만 뽑음
+                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').findOne( Filter객체 );
+                      -> 필드명이 '내용'에 들어맞는 어떤 1가지의 데이터만 뽑음
                          (= (중요) 1개의 데이터를 뽑는 것이기에, toArray()는 사용할 수 없음)
     
                      @ (주의) 데이터의 고유 id인 _id를 찾아서 검색하고 싶은 경우
