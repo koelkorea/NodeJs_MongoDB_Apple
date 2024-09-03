@@ -1,0 +1,62 @@
+ - TypeScript의 개념
+    : Microsoft에서 개발한 JavaScript의 동적타입(Dynamic typing)적인 측면으로 인한 문제점을 보완한 확장된 버전의 정적 타입 프로그래밍 언어
+      (= JS에서 자료형(Type) 문법을 보완하여 업그레이드해서 쓸 수 있는 JS의 업드레이드판 언어 or 일종의 부가기능라고 생각하면 편함..)
+
+ - TypeScript를 Node.js의 express 프레임워크와 MongoDB에서 연계해서 쓰는 이유?
+    : 내가 만든 변수나, DB에서 가져온 데이터의 '자료형(Type)'이나 그 {객체}의 내부 구조가 궁금한 경우가 있는데, TypeScript를 쓰면 그런 고민이 대개 잘 해결됨 
+        -> TypeScript로 인한 자료형 힌트는 미래에 내가 짠 코드를 보게될 사람에게 도움이 많이 되기에, 협업에 유리함
+
+     @ TypeScript를 Node.js의 express 프레임워크와 MongoDB에 적용하는 세팅법
+        1. npm install typescript ts-node @types/express dotenv express mongodb 라이브러리 설치
+        2. server.js파일을 server.ts 파일로 바꾸기
+        3. ts로 변경한 js 파일 내부의 모든 변수들을 '자료형(Type)'을 지정해야 함
+        4. import 'dotenv/config'를 ts 코드에 붙여줌
+        5. server.ts 내부에 사용할 자료형을 정의하고, <제너릭> 형식으로 이를 지정해서 자료형을 지정함으로서 자료형 힌트와 자료형 완성 같은 편의성을 맛볼 수 있음
+
+           ex) interface 형식으로 PostType이라는 {객체}의 자료형을 정의하고, 이를 result 변수로 하여금 무조건 지켜서 받으라고 <PostType>이란 제너릭을 붙여둠
+                -> 앞으로 result 변수에 자료형에 대한 힌트와 더불어,마우스 올리면 result 변수 생김새도 나오고 점찍으면 자동완성도 되는 기능을 자동으로 부여해줌 
+
+                   interface PostType {
+                     _id : ObjectId,
+                     title: string,
+                     content: string
+                   }
+                   
+                   let result = await db.collection<PostType>('post').findOne({ title : '하이' }) 
+
+        6. nodemon --exec ts-node server.ts 로 서버 실행
+
+           ex) server.ts로 변경된 server.js
+                -> db 변수의 자료형은 Db로 지정, import 'dotenv/config' 코드 덕분에 관련 자료형을 입력이 가능함
+           
+               import 'dotenv/config'
+               import { Db, ObjectId } from 'mongodb'
+               import express, { Request, Response } from 'express';
+               import { connectDB } from './database'
+           
+               const app = express()
+               
+               let db : Db
+               connectDB.then((client)=>{
+                 db = client.db('forum')
+                 app.listen(8080, () => {
+                   console.log('http://localhost:8080 에서 서버 실행중')
+                 })
+               }).catch((err)=>{
+                 console.log(err)
+               })
+               
+               app.get('/', async (요청: Request, 응답: Response) => {
+                 응답.send('안녕')
+               })
+
+  - (참고) JSdoc
+      : JavaDoc과 같이 JS에서도 주석을 통해 객체 내부 멤버변수들의 자료형 힌트를 적어둘 수 있는 개념
+         -> 변수나 함수 위에 /** 주석 */ 을 달아서 타입 힌트를 넣으면, 자동으로 밑에 있는 변수나 함수에 자료형 힌트를 제공
+             -> BUT! 상속이나, 재사용 기능까지 구현하긴 힘듦
+
+             ex) /** @type { { title : string, content : string } }  */
+                 let result = await db.collection('post').findOne({_id : 1})
+
+                 /** @type { { title : string, content : string }[] }  */
+                 let result = await db.collection('post').find().toArray() 

@@ -1,0 +1,749 @@
+- MongoDB
+   : 비관계형 데이터베이스 DB 중 하나
+     (= 관계형 DB가 아님 = 비정규화를 권장하는 DB = 테이블 2개 참조해서 무결성 데이터 뽑는 JOIN 같은거 애초에 고려도 안 함)
+
+      # MongoDB 구조 종류
+         : document 데이터베이스 = Database -> collection(= Table) -> document(= Data)단위를 기준으로 한 document당 js객체와 같은 형식으로 구성
+            -> 코드짜던 js 객체 내용 그대로 데이터베이스에 밀어넣을 수 있어서 매우 저장과 출력이 편리
+     
+                ex) Database 예시
+
+                    1. collection (테이블)
+                       { name : 'kim'
+                         age  : 20   }     <- document (데이터 단수)
+            
+                       { name : 'lee'
+                         age  : 21   }     <- document (데이터 단수)
+    
+                    2. collection (테이블)
+                       { goods   : 'apple'
+                         quality : 3   }     <- document (데이터 단수)
+            
+                       { goods   : 'peer'
+                         quality : 8   }     <- document (데이터 단수)
+
+      # Collection
+         : MongoDB에서 기존 관계형 DB에서 사용하는 Table 단위와 비슷한 개념으로 존재하는 폴더.. 
+            -> 이를 기준으로 각 DB는 자신 안의 데이터들을 저장할 위치를 구분함
+
+      # MongoDB 사용법
+         1. 설치해서 쓰기
+         2. mongodb.com 클라우드에서 호스팅받기 (추천)
+             -> 클라우드라 따로 생성 필요X
+             -> 무료용량 제공
+             -> full text search index 기능 제공
+             -> 돈을 내면, replica set이라고 해서 자동으로 3개의 데이터베이스에 분산저장 및 백업 제공
+
+                [mongodb.com에서 호스팅받는 법]
+   
+                 1) mongodb.com 가입 후, 설문
+                 2) 무료 티어 선택 + 위치는 서울 추천 
+                 3) create! 후, 좌측 Database Access 메뉴에서 해당 클라우드 DB 접속용 아이디/비번을 만듦
+                     -> (주의!) mongodb.com 계정이 아니라, 해당 db서버 계정에 대한 것임
+                 4) Bulit-in role에 atlas admin으로 설정
+                     -> (중요) 이렇게 해줘야, nodejs에서 DB 접속시 온갖 것들을 다 사용가능
+                 5) 좌측 Network Access 메뉴에서 IP를 추가하여, 데이터베이스 접속할 수 있는 IP를 미리 정의해놓는 일종의 보안 설정
+                     -> 보안 필요없이 아무데서나 쓸거면, Allow access from anywhere을 누르시거나 0.0.0.0/0 을 추가
+                 6) create DataBase를 통해, DB의 이름과 collection의 이름을 정하고 생성
+                     -> (중요) 이렇게 PROJECT > DB > collection > document(= db의 행에 해당하는 개별 데이터)의 위계를 따르게 됨
+                 7) 웹서버와 해당 MongoDB 연결
+
+      # MongoDB native 라이브러리를 통해 웹서버 연결하기
+         1. npm install mongodb@5 를 입력하여, mongodb 라이브러리 설치
+         2. 비동기 코드를 promise 문법으로 통제하는 로직을 사용한 DB연결 로직에 해당하는 보일러 플레이트를 server.js에 추가
+             -> server.js가 아니더라도 다른 database.js 같은 파일에 두고 나서 new MongoClient(url).connect()을 받는 변수만 export로 모듈을 분리한 뒤,
+                DB에 연결을 원하는 웹페이지 템플릿의 JS 파일에 import한 뒤, 구체적인 collection 호출을 하는 식으로 운용해도 됨
+
+                ex) then, catch, finally 버전
+    
+                    const { MongoClient } = require('mongodb')    // import { MongoClient } from 'mongodb' 도 상관없음
+           
+                    let db
+                    const url = 'mongodb사이트에 있던 님들의 DB 접속 URL'
+        
+                    let connectDB = new MongoClient(url).connect().then((client)=>{
+        
+                      db = client.db('forum')   <- 간단히 설명하면 님들이 호스팅받은 mongodb에 접속하고 접속 결과를 db라는 변수에 저장
+        
+                    }).catch((err)=>{
+                        
+                      console.log(err)
+                    })
+    
+                ex) async, await 버전
+    
+                    const { MongoClient } = require('mongodb')    // import { MongoClient } from 'mongodb' 도 상관없음
+                    
+                    const url = 'mongodb사이트에 있던 님들의 DB 접속 URL';
+                    const connectDB = await MongoClient(url, { useNewUrlParser: true }).connect();
+                    const db = connectDB.db("forum");
+
+         3. (참고) 보일러 플레이트를 database.js 같은 파일에 두어서 모듈을 분리시키고 싶다면?
+             : new MongoClient(url).connect()을 받는 변수까지만 export시킨 뒤에, 이를 사용한 페이지 js파일에서 import를 시켜 모듈을 불러오고, promise 문법으로 연결을 재개
+                -> (중요) let db 변수에 저장된 db = client.db('forum')까지 export 대상에 포함시키지 않는 이유? 
+                    : 비동기 코드를 promise 문법으로 통제하는 코드가 선행되는 사용되는 변수들은 export해서 쓰면 문제가 생길수도 있음
+
+                       ex) module export 추가 코드
+
+                           module.exports = connectDB;    //  export { connectDB }로도 대체 가능
+
+                       ex) 타 페이지 js파일에서 모듈 불러오는 then, catch, finally 버전
+ 
+                           let connectDB = require('./database.js')    // import { connectDB } from "/util/database.js"로 대체 가능
+
+                           connectDB.then((client)=>{
+                             console.log('DB연결성공');                
+                             db = client.db('forum');                  
+                             ~~
+                           }).catch((err)=>{
+                               console.log(err)
+                           })
+   
+                       ex) 타 페이지 js파일에서 모듈 불러오는 async, await 버전
+                       
+                           let connectDB = require('./database.js')    // import { connectDB } from "/util/database.js"로 대체 가능
+
+                           let client = await connectDB;
+                           const db = client.db('forum');              // let db = (await connectDB).db('forum'); 로 축약 가능
+                           ~~
+
+         4. url 변수에 'DB접속 URL'을 찾아넣자
+             -> 만든 database의 connect 버튼을 누른 뒤, driver를 선택하면..
+                "mongodb+srv://DB접속아이디:DB접속비번@cluster0.jea.mongodb.net/?retryWrites=true&w=majority"
+                  -> 이런 느낌의 문자열이 나오는데, 이걸 찾아서 대입해주면 됨
+
+      # MongoDB 객체
+         : 일반적으로 데이터베이스, 컬렉션, 문서 및 변경 스트림과 같은 MongoDB 엔터티를 나타내는 객체
+            -> MongoDB 데이터베이스 및 컬렉션과 상호 작용하고, 쿼리를 실행하고, 데이터 조작 작업을 수행하는 등의 인터페이스와 메서드
+
+            ex) MongoClient, Db, Collection, Document, ChangeStream 등등을 전부 포괄한 개념
+
+      # MongoClient 객체
+         : MongoDB 서버에 대한 연결 관련 기능 및 정보를 담당하면서, MongoDB 데이터베이스 및 컬렉션과 상호 작용하는 등의 기능을 수행하는 메서드을 제공하는 Node.js기반 mongodb 라이브러리에서 제공하는 JS객체
+            -> new MongoClient(url) 생성자를 통해 생성
+
+            @ MongoClient객체의 주요 기능(= 메서드)
+               1. DB서버와 연결
+                   -> MongoClient객체.connect();
+
+               2. DB 및 Collection 관리 및 생성 (= DDL수행)
+                   -> MongoClient객체.db('프로젝트명').collection('컬랙션명');
+
+               3. DB의 및 Collection CRUD 수행 (= DML수행)
+                   ->  MongoClient객체.db('프로젝트명').collection('컬랙션명').CRUD함수 내용 참고
+
+               4. ChangeStream을 통한 변경된 데이터 서버에 전송
+                   -> MongoClient객체.watch(pipeline객체)을 통한 ChangeStream 객체 생성
+                       -> ChangeStream.on() 메서드로 이를 받아 가공
+
+               5. 트랜잭션 및 세션 처리
+
+      # 파이프라인(= pipeline) 객체 VS 필터(= Filters) 객체
+         : mongo DB의 검색과 연관된 메서드들 관련 검색조건 용도로 parameter로 들어가는 객체 배열 타입
+            -> (공통점) 둘 다 DB의 document를 검색하고, 정렬하는 등의 목적으로 사용함
+               (차이점) Filters 객체는 단순 DB 문서검색을 목적으로 한다면, pipeline 객체는 index나 ChangeStream 기능과 같이 검색 이상의 기능과 연관
+
+           1. 필터 (= Filters)
+               : MongoClient객체의 Cursor 객체를 반환하는 DB의 문서 검색 메서드인 Update, delete, search등의 RUD와 같은 DML함수를 실행할 때, 검색조건으로 들어가는 parameter.. 
+                 (아무 내용도 쓰지 않는다면, 해당 컬랙션의 모든 document가 DML함수( find(), findOne(), updateOne(), updateMany(), delete(), deleteMany() )의 대상이 됨 )
+                   -> { 필드명 : { $연산자1 : 값, ... , $연산자n : 값 } } 같은 객체타입 조건으로 검색이 들어가거나 or 그 객체가 배열화 된 { 필드명 : [{조건1}, {조건2} ... ] } 로도 사용 가능
+                   
+                     @ 필드명의 데이터 검색용 $연산자 사용 Filter
+                        : 주로 { 필드명 : { $연산자 : "원시값" or [배열] or { JS객체 } , ($옵션연산자 : 내용) } } 식의 필드명이 대상
+
+                          1) 요소 연산자 (Element Operators)
+                              : 필드의 데이터의 '존재여부' , '자료형'에 기반하여 데이터를 검색하는 용도로 사용하는 연산자
+
+                               (문법1. $exists) {필드명 : { $exists : boolean } }
+                                 : 지정한 필드명에 데이터값이 존재하는 경우의 데이터만 골라 검색하는데 쓰이는 연산자 
+                                   (= NULL이나 ""가 아닌 케이스를 의미)
+
+                               (문법2. $type) {필드명 : { $exists : "자료형" } }
+                                 : 지정한 필드명에 해당 "자료형"으로 입력된 데이터를 검색하는데 쓰이는 연산자
+
+                          2) 비교 연산자 (Comparison Operators)
+                              : > 5, <= 6 이런식으로 특정 연산조건에 맞는 데이터들만 골라서 검색할 때 사용
+                               
+                               (문법1) {필드명 : { $연산자 : 숫자 } }
+                                 a. $eq  (equal)               : '=' 같음 의미  
+                                 b. $ne  (not equal)           : '!=' 어떤 수가 아님을 의미     
+                                 c. $gt  (greater than)        : '>' 초과를 의미
+                                 d. $gte (greater than equal)  : '>=' 이상을 의미
+                                 e. $lt  (lesser than)         : '<' 미만을 의미   
+                                 f. $lte (lesser than equal)   : '<=' 이하를 의미
+   
+                                    ex1) MongoClient객체.updateMany( {검색 필드명 : { $gt : 5 } }, { $set: {필드명1 : '수정할 내용1'} } )
+                                         : 필드명이 5를 초과하는 모든 데이터의 필드명1의 값을 '수정할 내용1'로 수정해라
+   
+                                    ex2) MongoClient객체.updateMany( {검색 필드명 : { $gte : 3 } }, { $inc: {필드명1 : -5} } )
+                                         : 필드명이 3이 아닌 모든 데이터의 필드명1의 값을 -5해라
+   
+                               (문법2) {필드명 : { $연산자 : [숫자1, ... , 숫자2] } }
+                                 g. $in  (array in)            : [배열] 중 속하는 값만   
+                                 h. $nin (array not in)        : [배열] 중 속하는 값만   
+    
+                                    ex1) MongoClient객체.updateMany( {검색 필드명 : { $in : [5, 10, 20] } }, { $set: {필드명1 : '수정할 내용1'} } )
+                                         : 필드명이 5, 10, 20에 해당하는 모든 데이터의 필드명1의 값을 '수정할 내용1'로 수정해라
+
+                          3) 배열 연산자 (Array Operators)
+                              : 특정 필드명의 데이터 중 배열값을 담는 데이터들을 대상으로 검색조건을 설정할 때 사용
+                               
+                               (문법1 $size) {필드명 : { $size : 숫자 } }
+                                 : (필드명 중 배열값을 가진 데이터들을 대상으로) 배열값의 크기가 지정한 숫자와 같은 데이터를 검색
+
+                               (문법2 $elemMatch) {필드명 : { $elemMatch : { 필드 조건식 } } } 
+                                 : (필드명 중 배열값을 가진 데이터들을 대상으로) 지정된 필드 조건식에 해당되는 데이터만 검색하는 용도로 사용
+
+                               (문법3 $all) {필드명 : { $all : [값1, ... , 값2] } }
+                                 : (필드명 중 배열값을 가진 데이터들을 대상으로) 입력된 [배열]요소를 모두 가지는 데이터만 검색하는 용도로 사용
+
+                          4) 평가 연산자 (Evaluation Operators)
+                              : 특정한 검색 조건을 설정해두고, 그 기준에 맞춰 데이터를 평가하여 검색하는 용도로 사용하는 연산자
+                                 -> 경우에 따라서는 {검색할 필드명 : { $예약어 : { $예약어 : 내용 } } } 이런식의 이중 예약어 {}도 사용 가능
+   
+                               (문법1. $regex) { 필드명 : { $regex : /정규식패턴/ , $options : '소문자'} } 
+                                 : 정규식과 연관된 연산자, 특정한 내용에 대해 정규식을 사용하여 검색함을 의미로 $option와 함께 쓰이기도 함
+   
+                                   [$regex 기반 연산자]
+                                     a. $options :  정규식에 특별한 법칙을 옵션을 flag값인 '소문자'로 부여
+                                         -> i (Ignore Case) : 대소문자 무시
+                                            m (Multi Line)  : 앵커(^) 사용시 \n 무력화
+                                            x               : 정규식 내의 공백 무시
+                                            s               : (.)을 사용할 때 \n 포함해서 매치
+                                            g (global)      : 문자열 내의 모든 패턴 검색 
+                                            u (unicode)     : 유니코드 전체를 지원
+                                            y (sticky)      : 문자 내 특정 위치에서 검색을 진행하는 'sticky' 모드를 활성화
+   
+                                     ex) MongoClient객체.db('프로젝트명').collection('컬렉션명').find( {title : {$regex : 요청.query.val, $options : 'i' } } );
+     
+                               (문법2. $text) { $text : { $search: "검색어" , $language : boolean, $caseSensitive : boolean, $diacriticSensitive : boolean} } 
+                                 : text index와 연관된 연산자로, 해당 collection에서 필드를 text로 정렬한 index를 사용하겠다는 의미로 보통 $search와 같이 쓰임
+   
+                                  [$text 기반 연산자]
+                                    a. $search             : 특정한 내용에 대해 해당 collection에서 필드를 text로 정렬한 index를 사용해 검색함을 의미
+                                    b. $caseSensitive      : 검색시 대/소문자 구분 여부
+                                    c. $diacriticSensitive : 알파벳 위아래에 붙는 기호 무시 여부
+   
+                                    ex) MongoClient객체.db('프로젝트명').collection('컬렉션명').find( { $text : { $search: '안녕' } } ).
+                                         : 해당 컬랙션명의 document 중 '안녕'이란 단어를 가지고 있는 녀석들을 데이터타입 text를 사용한 index를 사용해서 검색함을 의미
+   
+                               (문법3. $mod) { 필드명 : { $mod: [나눌숫자, 나머지값] } } 
+                                 : 해당 collection에서 필드명을 기준으로 나머지 연산을 사용하여 값을 검색
+   
+                               (문법4. $where) { 필드명 : { $where: "this.필드명 > 비교값" } } 
+                                 : 해당 collection에서 필드명을 기준으로 JavaScript 표현식을 사용하여 조건을 지정
+   
+
+                     @ 논리 연산자 (Logical Operators) 사용 Filter
+                        : $연산자로 작성된 여러개의 필터 조건식들을 논리 연산자를 통해 사용 
+
+                           (문법) { $논리연산자 : [ { 필터 조건식1 } , ... , { 필터 조건식n } ] } 식의 필드명이 대상
+                             a. $and : 모든 조건을 만족하는 데이터만 검색하라는 설정 
+                             b. $or  : 조건들 중 하나만이라도 만족하는 데이터만 검색하라는 설정 
+                             c. $nor : 모든 조건을 만족하는 데이터만 검색하라는 설정 
+                                 -> $not : ($nor의 단일 필터 조건) 해당 조건을 만족하지 않는 데이터만 검색하라는 설정 
+
+
+                     @ 기타 연산자 사용 Filter
+
+                        (문법1 $expr) { $expr: { $비교연산자 : ["$필드명1", "$필드명2"] } }
+                          : 특정 필드명들 간의 값을 비교하거나 수학적, 논리적 연산을 수행할 때 사용하는 집계 표현식에 해당하는 검색조건을 설정시 사용
+                             -> BUT! 일반 비교연산자처럼 사용도 가능함.. 하지만 그럴거면 이거 쓰지 마라
+
+                            ex) price 필드가 cost 필드보다 큰 문서 찾기
+
+                                const query = { $expr: { $gt: ["$price", "$cost"] } };
+                                 -> [ { "_id": 1, "price": 100, "cost": 80 },  { "_id": 3, "price": 120, "cost": 110 } ] 반환
+
+                            ex) endDate 필드가 startDate 필드보다 이후인 문서 찾기
+
+                                const query = { $expr: { $gt: ["$endDate", "$startDate"] } };
+                                 -> [ { "_id": 1, "startDate": "2023-01-01T00:00:00.000Z", "endDate": "2023-02-01T00:00:00.000Z" } ] 반환
+
+                        (문법2 $jsonSchema) { $jsonSchema: { properties: { 필드명: { bsonType: "string" } } } }
+                          : JSON 스키마를 사용하여 문서의 구조를 검증하여 검색조건을 작성할 때사용
+
+
+           2. 파이프라인(= pipeline)
+              : MongoClient객체의 메서드인 .aggregate(), .watch()의 parameter로 일종의 검색 조건으로 [{조건1}, {조건2} ... ] 형식으로 들어가는 객체배열
+  
+                @ 파이프라인(= pipeline) 특성
+  
+                  1) 파이프라인 내부에 존재하는 연산자 조건을 담은 객체 {} 안에 반드시 연산자가 들어가 있어야 함
+                     (= 3항연산자를 통해서 검색어가 NULL이나 ''인 경우를 [{}]안에서 쓸 수 없음)
+  
+                  2) 파이프라인의 [{조건1}, {조건2} ... ] 들은 JS변수에 객체배열의 값을 할당하여 쓸 수도 있음
+  
+                     ex) 이처럼 검색 조건식을 변수에 담아서 써도 아무 문제 없음 
+           
+                         let 검색조건 = [
+                           {$search : {
+                             index : '사용할 인덱스 이름',
+                             text : { query : '검색어', path : '검색할 필드이름' }
+                           }},
+                           { $sort : { _id : 1 } },
+                           { $limit : 10 },
+                           { $project : { 제목 : 1, _id : 0 } }
+                         ] 
+           
+                         db.collection().aggregate(검색조건).toArray()
+  
+                  3) (2번의 특성을 이용해서) 조건 연산자들로 이뤄진 JS변수는 엄연히 '배열' 타입으로 이뤄져 있음
+                       -> 배열.push({ $연산자 : 조건내용 }); 을 통해 aggregate()의 parameter로 넣을 객체배열의 내용을 변환 가능
+  
+  
+                @ pipeline 객체배열에 쓸 수 있는 대표적 연산자들 (= 찾아보면 더 있다 이런말..)
+                   : (중요!) $match는 changeStream객체의 메서드인 watch() 메서드에서 주로 사용함..
+                
+                     1) $match : { ChangeStream객체 필드명: 필터링할 필드값 }
+                         : DB가 변경을 감지한 데이터들을 보낸 ChangeStream 객체에서 가져온 문서들 중, 원하는 ChangeStream 객체 필드에서 정확히 필터링할 값과 일치하는 document만 필터링하여 서버가 수신하게 함 
+                            -> ChangeStream 객체가 대상 = ChangeStream 객체를 반환하는 .watch(pineline객체) 메서드의 pineline 객체에만 사용가능한 연산자
+  
+                     2) $search : { index : '사용할 인덱스명', text : { query : '검색어', path : '검색할 field명' } }
+                         : search index를 이용해서 주어진 조건들을 활용한 검색을 수행 
+                           (= 사용하지 않으면, 검색어 없이 list를 가져오는 것과 같음)
+     
+                            - (주의) 생각보다 쓰기전에 지켜야 할게 많은 녀석이니 주의가 필요
+                                a. 검색어를 기입하는 text 요소객체의 query 멤버변수에는 ''나 null은 허용되지 않음
+                                b. search는 쓸거면 무조건 파이프라인 배열의 1번째 요소객체가 되어야 함
+  
+                     3) $sort : { field명(= column명) : 숫자 }
+                         : 검색 결과를 field명의 데이터를 기준으로 정렬 
+                            -> 안 쓰면? 기본적으로 score 순으로 정렬됨
+          
+                                ex) { _id : 숫자}  -> 데이터들을 _id 순으로 정렬
+                             
+                     4) $limit : 숫자 
+                         : 검색 결과의 데이터 수를 숫자 개수 만큼만 제한 (= cursor객체변수.limit(숫자)) 
+                           
+                           ex) { $limit : 10 } -> 검색결과 중에 맨 위의 10개 document만 가져올 수 있습니다. 
+          
+                     5) $skip : 숫자 
+                         : 검색 결과의 데이터 수를 숫자 개수 만큼 지나친 위치에서 받아오기 시작함 (= cursor객체변수.skip(숫자)) 
+                            -> 페이지네이션도 구현가능한 방법 중 하나
+          
+                           ex) { $skip : 10 } -> 검색결과 중에 맨 위의 10개는 버리고 11번째부터 document부터 가져와 줌 
+          
+                              -> 당연히 { $skip : 5 } 이거 연산자도 쓸 수 있습니다. 그래서 이런거 쓰면 
+          
+                     6) $project : {필드명1 : 0 or 1, ... , 필드명n : 0 or 1}
+                         : 데이터 검색 결과 중에 1번에 해당하는 필드명의 데이터들만 가져오라고 걸러줄 수 있음
+                          
+                           ex) {title : 1, content : 0}  -> 이러면 title은 보여줌, content는 숨김이라는 뜻
+  
+                     7) $addFields : {필드명1 : 0 or 1, ... , 필드명n : 0 or 1}
+                         : 새로운 필드를 추가하는 데 사용..
+                            -> $project와 유사하지만 기존 필드를 변경하지 않고 새로운 필드를 추가
+  
+                     8) $group
+                         : 주어진 키에 따라 문서를 그룹화하고 각 그룹에 대한 집계 결과를 생성
+
+
+      # MongoDB의 CRUD 사용법
+         : MongoClient객체.db('프로젝트명').collection('컬렉션명').CRUD함수명({내용}) 형식으로 작성
+            -> insert를 제외한 RUD에 해당하는 나머지 DML 함수에 대해서는 검색이 필요하기에, paramter로 들어갈 검색조건으로 쿼리 메서드(상단 참고)가 필요함
+            -> 기본적으로 MongoDB의 CRUD 함수는 Promise 객체를 활용하여 '비동기적'으로 작동하도록 작성된 함수라는 점을 명심... 
+               (= 따라서 MongoDB는 컨텍스트 제어를 위한 async, await를 항시 사용할 것을 권유함.. 그게 아니면 db요청 결과를 기다리지 않고, 그냥 진행함)
+         
+               1. (컬랙션명에 데이터를) 단일 입력(insertOne)
+                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').insertOne( {필드명1 : '내용1' , ... , 필드명2 : '내용2'} )
+    
+               2. (컬랙션명에 데이터를) 복수 개수 입력(insertMany)
+                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').insertMany( {필드명1 : '내용1', 필드명2 : '내용2'} , ...  )
+    
+               3. 단일 데이터만 수정(updateOne)
+                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').updateOne( Filter객체 , $예약어 { {필드명1 : '수정할 내용1'} , ... , {필드명2 : '수정할 내용2'} } )
+    
+               4. (검색에 해당되는) 복수 데이터들 일괄 수정(updateMany)
+                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').updateMany( Filter객체 , $예약어 { {필드명1 : '수정할 내용1'} , ... , {필드명2 : '수정할 내용2'} } )
+                      -> 조건으로 들어갈 paramter에 대해서는 상단의 쿼리메서드(= Filter) 참고
+    
+                     @ (중요) update 내용 기록할 parameter 객체 작성시 사용하게 될 $예약어
+                        1) set : 일반적인 데이터 덮어쓰기
+                            -> MongoClient객체.db('프로젝트명').collection('컬렉션명').updateOne( {수정할 데이터 검색할 필드명 : '원래 내용'}, { $set: {필드명1 : '수정할 내용1'} , ... , {필드명2 : '수정할 내용2'} } )
+    
+                        2) inc : 숫자로 적힌 해당 칼럼의 데이터를 적혀있는 양수/음수 만큼 더하거나 뺀 결과로 갱신해준다
+                            -> MongoClient객체.db('프로젝트명').collection('컬렉션명').updateOne( {수정할 데이터 검색할 필드명 : '원래 내용'}, { $inc: {필드명1 : 양수/음수} , ... , {필드명2 : 양수/음수} } )
+    
+                        3) mul : 숫자로 적힌 해당 칼럼의 데이터를 적혀있는 양수/음수 만큼 곱한 결과로 갱신해준다
+                            -> MongoClient객체.db('프로젝트명').collection('컬렉션명').updateOne( {수정할 데이터 검색할 필드명 : '원래 내용'}, { $mul: {필드명1 : 양수/음수} , ... , {필드명2 : 양수/음수} } )
+    
+                        4) unset : 해당 데이터를 찾은뒤 기존에 있던 필드를 제거함
+                            -> MongoClient객체.db('프로젝트명').collection('컬렉션명').updateOne( {수정할 데이터 검색할 필드명 : '원래 내용'}, { { $unset: 필드명1 , ... , 필드명2 } } )
+    
+               5. 목록조회(find)
+                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').find(Filter객체) 
+                      -> 해당 프로젝트의 collection에 위치한 원하는 데이터 목록의 시작점이 위치한 DB의 커서 Cursor(DB 포인터 -> 메모리 주소)를 반환해 줌
+    
+                     @ Cursor 개념
+                        : MongoDB에서 사용하는 데이터가 위치한 DB의 포인터에 해당되는 개념의 js객체로 find() 함수를 통한 쿼리의 결과값으로 반환됨
+                           -> (중요) 그리고 이 Cursor 객체는 Cursor 객체를 parameter삼아 반환값으로 내놓는 메서드들을 가지고 있고, 메서드 chaining 사용가능함
+    
+                     @ find() 함수 기본 사용법
+                        : find()에 paramter로 들어갈 검색조건 쿼리메서드(= Filter)이 없으면, 해당 collection의 모든 데이터를 대상으로 함
+                           -> 조건으로 들어갈 paramter에 대해서는 상단의 쿼리메서드(= Filter) 참고
+    
+                           ex1) MongoClient객체.db('프로젝트명').collection('컬렉션명').find( { 필드명1 : '내용'}, ... , {필드명2 : '내용'} )
+                           ex2) MongoClient객체.db('프로젝트명').collection('컬렉션명').find( { 필드명1 : { $연산자 : 숫자 } } , ... , { 필드명2 : { $연산자 : 숫자 } })
+    
+                     @ (응용) 만약..? 페이지네이션 같이 특정 부분에 존재하는 데이터들을 몇 개만 가져오고 싶으면?
+                        : find() 함수를 사용하여 뽑은 목록값에 추가적인 함수 chaining을 통해 추가적 데이터 목록의 통제가 가능
+                          (해당 db위치를 기준으로 ( [생략가능] '숫자'만큼의 데이터들은 건너뛰고) '숫자'만큼의 데이터만 가져옴)
+                            -> cursor객체변수.[skip(숫자)].limit(숫자).toArray();
+    
+                     @ 대표적 Cursor 메서드들(cursor로 리턴되는 한 체이닝 가능)
+    
+                        1) cursor객체변수.toArray()
+                            : MongoDB내부에서 제공하는 'Cursor객체(= db 포인터) -> JS object배열'로 변환시켜 실체화된 데이터로 다룰 수 있게 하는 메서드
+                               -> (중요) 일단 .toArray()를 통해 'cursor객체변수'의 내용 -> '배열' 로 변환하였으면, 그 원본인 커서를 가공한뒤 toArray() 함수로 사용할 수 없음
+                                   -> toArray() 메서드를 사용하여 어떤 커서변수를 배열로 변환할 때, 내부적으로 원본 커서변수를 사용하기에 그 원본 커서변수는 이미 사용 중이므로 다른 메서드를 호출할 수 없음
+                                      (= cursor객체변수와 toArray()를 통한 document의 js객체배열은 일종의 의존성 관계에 놓여있다고 보면 됨)
+    
+                                      ex) (중요!) result가 쓰려는 커서변수 original은 이미 array가 사용 중인 상황이라, 새롭게 초기화하는게 불가능함
+                                           -> result는 original과 같은 내용의 crud 함수를 다시 실행해서 아직 toArray()를 통해 내부적으로 커서변수가 존재하지 않는 새로운 커서변수를 사용해야 함
+                                      
+                                          let original = await db.collection('post').find();
+       
+                                          let array = await original.toArray();
+                                          let result = await original.skip( (요청.params.page - 1) * 5 ).limit(5).toArray();
+    
+                        2) cursor객체변수.count()
+                            : 해당 cursor가 가르키는 위치에 존재하는 데이터의 수를 집계함
+    
+                        3) cursor객체변수.skip(숫자)
+                            : 해당 cursor가 가르키는 위치에 존재하는 1번째 데이터를 기준으로 몇 개의 데이터를 데이터 목록에서 뺌
+                               -> (주의) 너무 큰 수를 적으면, 성능에 지장 생김
+    
+                        4) cursor객체변수.limit(숫자)
+                            : 해당 cursor가 가르키는 위치에 존재하는 데이터를 기준으로 몇 개의 데이터만 데이터 목록에 반영 
+                               -> cursor는 데이터가 위치한 곳의 시작 위치를 알려줄 뿐이라, 관계형 db처럼 실제로 뽑아온 데이터를 바탕으로 재가공에 재가공 체이닝을 거는 기능을 약할 수 밖에 없음.. 대충 거기 기준 몇개 거르고 몇개 뽑아와 정도...
+                                  (= limit와 sort를 체이닝 해봐야 관계형DB처럼 연쇄가공을 통한 원하는 데이터를 조작하듯 뽑는게 많이 힘듦... limit가 먼저오면 sort가 씹힌다)
+    
+                        5) cursor객체변수.sort( {기준칼럼 : + or -} )
+                            : 해당 cursor가 가르키는 위치에 존재하는 데이터목록을 정렬값에 따라 오름차순 or 내림차순하여 목록에 반영
+    
+                        6) cursor객체변수.next()
+                            : 현재 cursor의 값을 기준으로 다음 데이터의 위치를 반환
+    
+                        7) cursor객체변수.explain("executionStats")
+                            : 현재 cursor의 값이 도출되기까지의 성능과 관련된 통계에 대한 데이터를 반환
+                                -> 참고내용 (예시는 index 개념 참고)
+                                   - totalDocsExamined: 참조된 document 횟수
+                                   - executionStages  : 쿼리 수행 상세 정보 객체
+                                      1) stage : 어떤식으로 작업을 했는가?
+                                          -> inputStage가 executionStages의 멤버객체 X
+                                               A. TEXT_MATCH : TEXT 일치여부 기준으로 스캔
+                                               B. COLLSCAN   : index를 사용X, 콜랙션의 데이터 전체 스캔(Collection Scan)
+               
+                                          -> inputStage가 executionStages의 멤버객체로 생성
+                                               A. SORT : find() 이후 SORT 함수를 사용하였으나, 해당 collection의 모든 필드가 정렬기준이 마련되지 않아 일부만 index가 적용된 경우
+                                                   -> inputStage 멤버객체의 stage멤버변수는 "SORT_KEY_GENERATOR"라는 상태값을 가지고, 부분적으로 적용된 index가 있다면, 하위 indexName을 가지는 inputStage 멤버객체가 존재함
+                                               B. FETCH : find() 이후 SORT 함수를 사용하고, 해당 collection의 모든 필드가 적용된 compound index가 존재하여 사용 하는 경우 
+                                                   -> inputStage 멤버객체의 stage멤버변수는 "IXSCAN"라는 상태값을 가지며, indexName라는 멤버변수를 가짐 
+               
+                                      2) inputStage : stage에서 선택한 방식의 세부사항을 적음
+    
+               6. 개별조회(findOne)
+                   : MongoClient객체.db('프로젝트명').collection('컬렉션명').findOne( Filter객체 );
+                      -> 필드명이 '내용'에 들어맞는 어떤 1가지의 데이터만 뽑음
+                         (= (중요) 1개의 데이터를 뽑는 것이기에, toArray()는 사용할 수 없음)
+    
+                     @ (주의) 데이터의 고유 id인 _id를 찾아서 검색하고 싶은 경우
+                         1) const { ObjectId } = require('mongodb') 코드를 반드시 추가해야 함
+                            -> 정확히는 ID기반 검색시 생성된 JS에서 이 ID정보를 인식하고 DB에 검색 명령 내릴때 전달가능하게 하는 JS객체에 해당하는 ObjectId 변수가 모듈의 사용영역에 포함되어 있어야함 
+             
+                         2) 개별검색 항목에 입력하는 id번호는 new ObjectId(id번호) 형식으로 내용을 기입
+                         
+                            ex1) URL 파러미터 사용시
+                               
+                                app.get('/detail/:id', async (요청, 응답) => {
+                                   let result = await db.collection('post').findOne({_id : new ObjectId(요청.params.id)});
+                                   응답.render('detail.ejs', { 상세글 : result })
+                                });
+    
+                            ex2) QueryString 사용시
+                               
+                                app.get('/detail', async (요청, 응답) => {
+                                   let result = await db.collection('post').findOne({_id : new ObjectId(요청.query.id)});
+                                   응답.render('detail.ejs', { 상세글 : result })
+                                });
+    
+                     @ (중요) BSON
+                         : JSON과 유사하지만 추가적인 데이터 타입과 기능을 제공하여 MongoDB와 같은 NoSQL 데이터베이스에서 사용
+    
+                     @ (중요) ObjectId 개념
+                         : BSON(Binary JSON) 형식으로 RDBMS에서 Primary Key와 같은 고유한 키 역할을 수행하기 위해 만들어진 특별한 유형의 데이터 타입
+                            -> mongoDB db에서 document에 저장된 _id라는 field를 보면 저장된 내용을 확인 가능하며, 직접적인 BSON 형식으로 저장되어 있진 않고 new ObjectID('BSON 제조용 parameter문자열')라는 JS생성자 형식으로 저장됨
+    
+                               - new ObjectID('BSON 제조용 parameter문자열')
+                                   : 파라미터로 전달된 문자열에 따라 BSON 형식의 ObjectID를 생성하는 JavaScript의 생성자 함수
+                                     
+                                     ex) new ObjectID('5b7d297cc718bc33212aa94)
+       
+                               - 'BSON 제조용 parameter문자열'의 구조
+                                   : 총 12byte 16진수로 구성.. 보통 따로 저장하지 않으면 생성규칙에 맞춰 자동생성되며 그 소스는 초단위의 생성시간도 포함되어 있기에.. 자동생성시 고유성을 확보가능하게 설계됨
+                                     (= 총 12byte로 구성된 BSON 제조용 parameter문자열 내용을 파싱하면, ObjectID의 내용을 알 수 있음)                     
+                                        -> Timestamp(4바이트)          : Unix epoch이후 ObjectID가 생성된 시간(초)을 나타냄 (= 문서 순서를 생성순으로 유지가능)
+                                        -> Machine identifier(3바이트) : ObjectID를 생성한 컴퓨터의 기계 식별자
+                                        -> Process identifier(2바이트) : ObjectID를 생성한 프로세스의 식별자
+                                        -> Counter(3바이트)            : 같은 프로세스에서 동시에 생성된 ObjectID를 구분하기 위한 카운터 값
+    
+                               - ObjectId객체.equals(ObjectId객체)
+                                  : server.js에서 JS객체인 ObjectId들이 같은지를 확인할 때, 그들의 힙영역의 포인터가 같은지 여부를 비교하기 위해 사용하는 mongoDB 라이브러리의 함수 (==, === 필요X)
+                                     -> (주의) 사용하기 전에 ObjectId라는 객체 타입의 정의가 필요한 관계로... 이를 정의한 mongodb 라이브러리를 import하지 않은 상태에서 사용시 에러가 발생함
+                                        (= ejs화면 파일에서 ObjectId라는 무턱대고 사용하면 오류가 발생하는 대부분의 원인을 차지)
+    
+                               - (중요!) ObjectId 형식 사용시 주의점
+                                  1) mongoDB에 CRUD 함수 수행시, server.js에서 해당 형식의 값을 전달하기 위해서는 new ObjectId('BSON 형식 문자열')로 입력해야, DB에서 해당 값을 적합하게 인지하여 기록하거나 쿼리에 파라미터로 사용함
+    
+                                  2) 'BSON 제조용 parameter문자열'로 들어갈 byte크기가 12byte를 넘거나, 파싱할 수 없는 형식으로 입력되면 에러가 유발됨
+                                     (= new ObjectId('BSON 형식 문자열')은 new ObjectId(new ObjectId('BSON 형식 문자열')) 이런 식으로 들어갈 수 없음)
+     
+                                  3) 'BSON 제조용 parameter문자열'이 곧 ObjectID의 내용임
+    
+                                  4) (중요!) server.js에서 new ObjectId 형식의 값은 mongodb 라이브러리에서 정의한 ObjectId라는 형식의 js객체로서 인식됨
+                                      -> server.js에서 new ObjectId 형식의 값 비교를 위해서, ObjectId객체.equals(ObjectId객체) 함수를 사용
+                                          -> 단! mongodb 라이브러리의 import는 반드시 해야 ObjectId 타입의 메서드인 equals() 함수 사용 가능
+                                             (= ejs화면 파일에서 equals를 무턱대고 사용하면 오류가 발생하는 대부분의 원인을 차지)
+    
+                                  5) (중요) ejs 확장자의 화면에서 ObjectId 형식의 값을 출력할 시? 
+                                     (= 어떤 영역에 있냐에 따라 형변환 규칙이 달라지고, 이에 따라 출력이 달라짐)
+                                        -> 서버 측 템플릿 영역
+                                            : JS의 자동 형변환 규칙을 ㅈ까고, 템플릿 엔진은 템플릿 코드를 그대로 출력하거나 서버 측에서 제공된 데이터를 문자열로 변환하여 템플릿에 삽입
+                                              (= JS객체화 된 ObjectId 형식의 변수를 문자열로 출력하고 싶으면, 명시적으로 toString() 함수를 적용해줘야 함) 
+    
+                                        -> 화면 측 script 영역
+                                            : JS의 자동 형변환 규칙에 따라서, 자동으로 toString() 함수를 적용하여, BSON 형식 문자열 그 자체로 출력
+                                              (= ejs 확장자의 화면측의 영역에서는 ObjectId 형식의 값 비교는 늘 하던데로 ==, === 와 같은 연산자를 사용하면 됨)
+                                  
+               7. (중요) 만들어진 search index server.js에서 활용하는 코드
+                  : MongoClient객체.db('프로젝트명').collection('컬렉션명').aggregate(pipeline객체)
+                     -> .find()와 유사.. BUT! ()안에 여러 조건식들을 넣을때 [{조건1}, {조건2} ... ] 파이프라인 객체배열 형식으로 적용을 원할 때 사용
+    
+                    @ (중요!) AggregationCursor 개념 ( <-> cursor)
+                       : aggregate() 함수가 반환하는 return값으로 cursor와는 호환되지 않는 고유한 타입의 객체
+                         (= 다른 CRUD 함수들이 체이닝할 수 있는 count() 같은 몇몇 함수들이 호환되지 않음!!)
+                             -> count 같은 경우는 toArray()를 통해 객체배열로 변환한 뒤, length 멤버 변수를 통해 구함
+
+
+      # (선택) MongoDB에서 index(인덱스) 관련 
+
+        1. 일반 index
+      
+           @ index 생성법
+              1. server.js의 API를 통해 mongodb 라이브러리의 명령어로 만들기
+                1) client.db('DB명').collection('컬렉션명').createIndex({ 필드명1 : 데이터타입 , ... , 필드명n : 데이터타입 })
+                     -> 1은 숫자를 오름차순(= -1은 내림차순) 기준으로 정렬, text는 글자를 기준으로 정렬하라는 의미
+    
+              2. mongodb에서 collection을 특정 기준으로 정렬해 둔 복사본 index 만드는 법 (추천)
+    
+                1) 원하는 collection -> index ->  create index 클릭
+                2) 페이지의 text 필드의 {} 안에 다음과 같은 형식으로 원하는 collection의 field명과 정렬의 기준으로 삼을 데이터 타입(숫자 = 1 or -1, 글자 = text)을 적음
+                    -> { 필드명1 : 데이터타입 , ... , 필드명n : 데이터타입}
+    
+                        ex) { number : 1, ... , name : text }  
+                              -> 1은 숫자를 오름차순(= -1은 내림차순) 기준으로 정렬, text는 글자를 기준으로 정렬하라는 의미
+   
+           @ (중요) 만들어진 index server.js에서 활용하는 코드
+              1. (중요) index를 사용한 document 검색 코드
+                  : index의 정렬기준이.. text(문자)인 경우? 
+                     -> MongoDB의 find()나 findOne()에 예약어 $text : { $search: '검색어' } 을 기입하여 검색에 index를 사용함
+                        (= index의 정렬기준이 숫자(-1 or 1)인 경우는 걍 신경꺼도 됨)
+    
+                        ex) (문자) db.collection().find( { $text : { $search: '안녕' } } ).explain('executionStats')
+                              -> index 데이터타입이 문자의 경우 $text : { $search: '검색어' } 을 기입하여 검색에 index를 사용하여 검색
+   
+                            (숫자) db.collection().find( { text : '안녕' } ).explain('executionStats')
+                              -> index 데이터타입이 -1 or 1(숫자)인 경우는 걍 신경꺼도 됨
+                             
+              2. (선택) 만약 성능측정 결과가 필요하다면, MongoDB의 CRUD 코드 중, find()나 findOne() 결과값 Cursor변수.explain('executionStats')를 붙여준 뒤 이를 출력함
+    
+                   ex) let stats = db.collection().find( { title : '안녕' } ).explain('executionStats');
+                       console.log(stats);
+                      
+                        -> "executionStats" : {
+                             "executionSuccess" : true,
+                             "nReturned" : 10,
+                             "executionTimeMillis" : 0,
+                             "totalKeysExamined" : 10,
+                             "totalDocsExamined" : 10,               <- 실제로 검색시 까본 collection의 데이터는 10개
+                             "executionStages" : {
+                               "stage" : "FETCH",                    <- "stage" : "FETCH" : 사용된 index가 collection의 모든 필드를 대상으로 했음
+                               "nReturned" : 10,
+                               "docsExamined" : 10,
+                               "inputStage" : {
+                                 "stage" : "IXSCAN",
+                                 "nReturned" : 10,
+                                 "indexName" : "class_1_grade_1"    <- "indexName" : "class_1_grade_1" : 사용한 index명
+                               }
+                             }
+                           } 
+   
+                     [참고내용]
+                       - totalDocsExamined: 참조된 document 횟수
+                       - executionStages  : 쿼리 수행 상세 정보 객체
+                          1) stage : 어떤식으로 작업을 했는가?
+                              -> inputStage가 executionStages의 멤버객체 X
+                                   A. TEXT_MATCH : TEXT 일치여부 기준으로 스캔
+                                   B. COLLSCAN   : index를 사용X, 콜랙션의 데이터 전체 스캔(Collection Scan)
+   
+                              -> inputStage가 executionStages의 멤버객체로 생성
+                                   A. SORT : find() 이후 SORT 함수를 사용하였으나, 해당 collection의 모든 필드가 정렬기준이 마련되지 않아 일부만 index가 적용된 경우
+                                       -> inputStage 멤버객체의 stage멤버변수는 "SORT_KEY_GENERATOR"라는 상태값을 가지고, 부분적으로 적용된 index가 있다면, 하위 indexName을 가지는 inputStage 멤버객체가 존재함
+                                   B. FETCH : find() 이후 SORT 함수를 사용하고, 해당 collection의 모든 필드가 적용된 compound index가 존재하여 사용 하는 경우 
+                                       -> inputStage 멤버객체의 stage멤버변수는 "IXSCAN"라는 상태값을 가지며, indexName라는 멤버변수를 가짐 
+   
+                          2) inputStage : stage에서 선택한 방식의 세부사항을 적음
+
+        2. search index 관련
+
+           @ search index 생성법 (로컬 download로는 생성 불가!)
+              1. MongoDB 사이트의 collection -> index -> search index 만들기(= create) 버튼 클릭
+              2. index 이름은 자유롭게 작명, 어떤 collection의 index인지를 선택 후 next버튼 클릭 후 refine 클릭
+              3. index를 커스터마이징 하는 부분에서 다음과 같이 설정
+                  - analyzer : lucene.korean
+                  - dynamic mapping : off
+                     -> lucene.korean
+                         : 각 document의 필드의 있던 document 분석시 lucene이라는 라이브러리를 이용해서 '한국어' 기준 쓸데없는 불용어나 조사를 제거해주라고 설정
+                     -> dynamic mapping 
+                         : 각 document에 있는 모든 필드들을 indexing할 것인지 결정 
+                           (off를 하면? 5번의 field mapping을 직접 작성 = index 적용 필드를 직접 설정한다는 의미)
+   
+              4. (dynamic mapping : off를 설정시) Add field mapping을 클릭
+                  -> 이후, 어떤 field(= column)를 기준으로 search index를 만들 것인지 설정하는 field mapping 추가
+                     (= 검색어 입력시 검색의 대상이 되어야할 field(= column)들을 정확히 설정하여 검색의 범위를 정확히 설정해야 성능 낭비가 없음)
+   
+              5. search index 생성 이후 편의기능
+                  -> query 버튼을 누르면 직접 검색 잘 되는지 테스트 가능
+                  -> search index에 존재하는 단어 중 자주 검색되는 단어는 높은 score를 가짐
+                     (= 높은 score 가진 document를 자동으로 위로 올려주기 때문에, 검색 순위같은 것도 자동 구현 가능)
+
+           @ (중요) 만들어진 search index server.js에서 활용하는 코드
+              : MongoClient객체.db('프로젝트명').collection('컬렉션명').aggregate(pipeline객체)
+                 -> .find()와 유사.. BUT! ()안에 여러 조건식을 [{조건1}, {조건2} ... ] 형식으로 적용을 원할 때 사용
+                     -> 자세한 내용은 MongoClient객체.aggregate() 메서드를 참고하도록 하자..
+
+
+      # MongoClient Nodejs 라이브러리의 changeStream 기능 사용
+         : 이를 통해서 실시간으로 DB의 변동사항(CUD로 인한..) 데이터를 받아와 Node.js의 웹서버가 또한 데이터를 송신받아 자체적인 뭔가를 할 수 있음
+           (= 웹서버 측도 능동적으로 클라이언트에 데이터를 전송가능한 웹소켓이나 Server sent event와 같은 기술을 활용해야 의미 있음)
+ 
+           @ MongoClient에서 changeStream 코드를 작성하는 절차 및 순서
+              1. 원하는 위치 어디에서라도 client.db().collection().watch(pipeline객체) 쓰면, changeStream객체를 생성 + 특정 컬렉션 감시를 시작
+                  -> 모든 document 생성/수정/삭제를 감시하기 싫으면, pipeline객체에 원하는 방식의 조건식을 적어두자... 'pipeline객체' 참고
+                     
+                     ex) $match 연산자로 조건식을 적어두면, match조건에 적은 검색어와 정확히 일치되는 문서들만 변경여부를 감지하게 됨
+
+              2. MongoClient객체.watch()메서드의 반환값인 changeStream객체로부터 changeStream객체.on('변경event명', 무명콜백함수) 메서드 체이닝을 작성
+                  -> 변경 event명 : DB내 컬랙션에 변경이 일어났을때, 키워드(CUD관련)에 맞는 방식으로 변경된 문서들에 한해서만 서버에 전송해 줌   
+                     무명콜백함수  : parameter에 해당하는 변수를 통해, MongoDB측에서 보낸 변경된 document들에 대한 정보를 받고 이를 가공함
+
+                     ex) const changeStream = MongoClient객체.db('프로젝트명').collection('컬랙션명').watch(pipeline객체);
+                         changeStream.on('change', 무명콜백함수 );
+
+           @ (중요!) MongoClient객체  VS  ChangeStream객체
+              : 2개의 객체는 다르며 이를 구분해야 앞으로 등장하는 메서드 체이닝 코드를 이해가능
+                 -> MongoClient객체.watch(pipeline객체)와 ChangeStream객체.on('변경event명', 무명콜백함수)가 어떤 JS객체에 속해 있는 메서드인지와 그들의 반환값이 어떤 JS객체인지 알아야함
+                    (정확히는 .watch() 메서드가 MongoClient객체에 속하고, 반환값이 ChangeStream객체라는거만 알면 .on() 메서드 부분은 그냥 이해됨)
+
+              - MongoClient 객체
+                 : MongoClient 라이브러리를 통한 MongoDB에 접속 및 해당 정보를 기록할 용도로 생성한 JS객체
+                    -> 객체 생성   : new MongoClient('uri명')으로 생성
+                       주요 메서드 : CRUD 함수, MongoClient객체.aggregate(pipeline객체), MongoClient객체.watch(pipeline객체) 등등
+
+              - (중요!) Change Stream 객체
+                 : MongoDB의 컬렉션에서 발생하는 변경 사항이 모니터링하고 이벤트스트림으로 Node.js기반 웹서버가 수신하는데 사용되는 MongoClient 라이브러리에서 제공하는 js객체 타입
+                    -> 객체 생성   : 'MongoClient 객체의 메서드'인 .watch(pipeline객체)를 통해 생성
+                       주요 메서드 : Change Stream 객체.on('변경event명', 무명콜백함수 )
+
+           @ Change Stream 객체 내부구조
+              : .watch()메서드의 파이브라인 객체 작성중 $match : { ChangeStream객체 필드명: 필터링할 필드값 }에 필요한 개념
+
+                 1. _id           : 해당 Change Stream 객체의 고유값에 해당하는 정보를 지닌 객체로.. _data라는 내부 멤버변수를 가짐
+                 2. operationType : 해당 변동사항이 CUD중 어떤 것인지를 의미 (insert, update, delete)
+                 3. fullDocument  : (중요) 변동되서 DB로부터 서버로 전송된 document의 필드 정보를 객체멤버 형식으로 모두 가진 JS객체...
+                     -> 주로 이 객체를 사용하여, 받은 데이터를 서버에서 가공하는 과정을 거칠거라 예상
+
+           @ MongoClient객체.watch(pipeline객체)
+              : 'MongoClient객체에 메서드'로 특정 '프로젝트' 내에 존재하는 '컬랙션'의 데이터 변동(= CUD 중 하나) 여부를 감시하는 역할을 하고 관련 정보를 담는 changeStream객체를 생성하는 메서드 
+                (= MongoClient Nodejs 라이브러리의 changeStream 기능 사용을 사용할 초석)
+
+                - MongoClient객체.watch(pipeline객체) 메서드 사용시 참고사항
+                   1. (중요!) MongoClient객체에 소속된 메서드지만, changeStream객체를 리턴한다는 사실을 기억해야 함
+                   2. changeStream객체를 리턴하기에, changeStream객체의 메서드인 changeStream객체.on()를 메서드 체이닝으로 사용 가능
+                       -> changeStream객체.on()을 통해 웹서버에 감시 중 인지한 DB의 변동사항에 대해 알려주고, 무명콜백함수로 가공 가능
+
+                           ex) MongoClient객체.db('프로젝트명').collection('컬랙션명').watch(pipeline객체).on('change', 무명콜백함수 ); 로 일반적으로 사용가능
+
+                   3. ()안에 pipeline객체를 parameter로 가질 수 있음
+                        -> parameter를 여러 조건식을 [{조건1}, {조건2} ... ] 형식으로 넣으면, 원하는 형식의 변동사항만 체크도 가능
+                            -> pipeline객체 관련 내용 정리 참고
+
+                   4. 이 녀석도 결국 함수이기에, 특별한 목적이 없으면 최소한만 호출되는게 성능에 유리함
+                      (= 특정 컬랙션에 대한 영원한 변동사항 감시를 원한다면? 특정 API가 아니라, DB서버 연결할 때 1번만 사용해도 충분함)
+
+                 - $match : { ChangeStream객체 필드명 : 필터링할 필드값 }
+                    : DB가 변경을 감지한 데이터들을 보낸 ChangeStream 객체에서 가져온 문서들 중, 원하는 ChangeStream 객체 필드에서 정확히 필터링할 값과 일치하는 document만 필터링하여 서버가 수신하게 함 
+                       -> ChangeStream 객체가 대상 = ChangeStream 객체를 반환하는 .watch(pineline객체) 메서드의 pineline 객체에만 사용가능한 연산자
+                           -> (중요!) 사실 그래봐야... 결국 대부분의 사용자가 원하는 변동 정보는 결국 db에서 보낸 document들의 필드값이니.. fullDocument 객체를 만지게끔 되어있음
+
+                               ex) let 파이브라인 = [  { $match: { fullDocument.name : 123 } }  ]
+                                   const changeStream = db.collection('post').watch(파이브라인)
+
+           @ changeStream객체.on('변경event명', 무명콜백함수 )
+              : 'changeStream객체 메서드'로 MongoClient객체.watch(pipeline객체)가 감시한 변동된 데이터를 DB로부터 웹서버가 수신하게 하고 + 이를 가공하게 하는 역할의 메서드 
+
+                - changeStream객체.on('변경event명', 무명콜백함수 )의 parameter 설명
+
+                   1. 변경event명
+                       : CUD 중 어떤 방식으로 변경된 document들만 서버에서 수신받을지 결정하는 키워드에 해당 
+                          -> change : CUD에 상관없이 모든 방식으로 변경된 document를 DB로부터 웹서버에 수신받게 함
+                          -> insert : Create 방식으로 변경된 document를 DB로부터 웹서버에 수신받게 함
+                          -> update : Update 방식으로 변경된 document를 DB로부터 웹서버에 수신받게 함
+                          -> delete : Delete 방식으로 변경된 document를 DB로부터 웹서버에 수신받게 함
+
+                   2. 무명콜백함수
+                       : 해당 콜백함수의 parameter 변수를 통해 DB가 보낸 변경된 document의 대한 데이터를 수신받고, 이를 이용해서 웹서버에서 원하는 방식으로 가공하는 역할을 맡음
+
+                          ex) server.js에 Server sent event와 연계되어 작성되는 코드 예시
+
+                              app.get('/stream/post', (요청, 응답) => {
+
+                                응답.writeHead(200, {
+                                  "Connection": "keep-alive",
+                                  "Content-Type": "text/event-stream",
+                                  "Cache-Control": "no-cache",
+                                })
+
+                                const 찾을문서 = [ { $match: { operationType: 'insert' } } ];
+
+                                let changeStream = db.collection('post').watch(찾을문서)
+
+                                changeStream.on('change', (result) => {
+                                  console.log('DB변동생김')
+                                  응답.write('event: msg\n')
+                                  응답.write(`data: ${JSON.stringify(result.fullDocument)}\n\n`)
+                                })
+
+                              });
+
+
+      # express HTTP API와 연계된 MongoDB의 CRUD 작성법
+         : express 라이브러리의 HTTP 메서드에 해당하는 함수에 parameter로 들어갈 URL과 그에 대응하는 CRUD를 담은 무명함수를 적어서 API로 완성함
+
+           ex) app.get('/news', ()=>{
+                 db.collection('컬렉션명').insertOne({title : '어쩌구'})         // MongoDB의 CRUD 함수
+               })
+
+               app.get('/list', async (요청, 응답) => {
+                 let result = await db.collection('컬렉션명').find().toArray()   // MongoDB의 CRUD는 비동기로 작동하는 코드라는 점도 잊지마라!
+                 응답.send(result[0].title)
+               })
+
+      # MongoDB에서 가져온 데이터를 HTML에 뿌리려면 어떻게 해야하나?
+         : JS의 템플릿 엔진과 관련된 라이브러리를 통해서 뿌리면 됨... 템플릿 엔진 관련 문서 참조
+           (= 그러니까 JSP에서 DB의 데이터 뿌릴 때, 쓰던 방식과 유사하다 생각하면 됨)
+
+      # schema validation 
+         : MongoDB native 라이브러리의 자체 DB 입출력 관련 validation 기능으로, 각 collection의 field들의 타입들을 설정함으로서 잘못된 필드값을 가진 document의 입력을 원천 차단하는 기능
+            -> https://www.mongodb.com/docs/manual/core/schema-validation/ 참고
